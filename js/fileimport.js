@@ -8,7 +8,6 @@
     pdf: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
     pdfWorker: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js',
     mammoth: 'https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js',
-    tesseract: 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js',
   };
 
   const loaded = {};
@@ -127,29 +126,17 @@
     return { title: h ? h.textContent.trim() : '', source: '', text: paras.join('\n\n') };
   }
 
-  /* ---------- photo / screenshot ---------- */
+  /* ---------- photo / screenshot: see ocr.js ---------- */
 
-  async function fromImage(file, onProgress) {
-    await loadScript(LIBS.tesseract);
-    onProgress('Reading text from the image… (this can take a minute)');
-    const res = await window.Tesseract.recognize(file, 'eng', {
-      logger: (m) => {
-        if (m.status === 'recognizing text') onProgress('Reading text from the image… ' + Math.round(m.progress * 100) + '%');
-      },
-    });
-    // OCR breaks lines inside paragraphs; join them back.
-    const text = res.data.text
-      .split(/\n\s*\n/)
-      .map((p) => p.replace(/-\n(?=[a-z])/g, '').replace(/\s*\n\s*/g, ' ').trim())
-      .filter(Boolean)
-      .join('\n\n');
-    return { title: '', source: '', text };
-  }
+  A2I.loadScript = loadScript;
+  A2I.isImageFile = function (file) {
+    return (file.type || '').startsWith('image/') || /\.(png|jpe?g|webp|bmp|gif)$/i.test(file.name || '');
+  };
 
   /* Read one file. Returns {title, source, text}. */
   A2I.readArticleFile = async function (file, onProgress) {
     onProgress = onProgress || function () {};
-    const name = file.name || 'article';
+    const name = file.name || 'screenshot';
     const ext = (name.match(/\.([^.]+)$/) || [])[1];
     const type = file.type || '';
     let out;
@@ -162,8 +149,8 @@
       throw new Error('Old .doc files are not supported. In Word, use File → Save As → .docx, or save as PDF.');
     } else if (/^html?$|^xhtml$|^mht/.test(ext || '') || type === 'text/html') {
       out = fromHTML(await file.text());
-    } else if (type.startsWith('image/') || /^(png|jpe?g|webp|bmp|gif)$/i.test(ext || '')) {
-      out = await fromImage(file, onProgress);
+    } else if (A2I.isImageFile(file)) {
+      out = await A2I.ocrImage(file, onProgress);
     } else if (ext === 'json') {
       throw new Error('This looks like a test file. Use “Import .json” on the My tests page.');
     } else {
@@ -171,6 +158,7 @@
       out = /^\s*<(!doctype|html)/i.test(text) ? fromHTML(text) : { title: '', source: '', text };
     }
     out.text = (out.text || '').replace(/\r\n?/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+    if (A2I.wordCount(out.text) < 30 && A2I.isImageFile(file)) throw new Error('Could not read enough text from the image. Try a sharper or larger screenshot (zoom in on the page first).');
     if (A2I.wordCount(out.text) < 30) throw new Error('Could not find enough text in ' + name + '. If it is a scanned PDF, take a screenshot and upload the image instead.');
     if (!out.title) {
       // Use a short first line as the headline if there is one.

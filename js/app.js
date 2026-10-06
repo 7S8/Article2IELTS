@@ -178,11 +178,11 @@
         <div class="card">
           <h2>1. Add the article</h2>
           <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Upload an article file">
-            <input type="file" id="article-file" hidden
+            <input type="file" id="article-file" hidden multiple
               accept=".pdf,.docx,.txt,.md,.html,.htm,.rtf,image/*,application/pdf,text/plain,text/html">
             <div class="dz-icon" aria-hidden="true">📄</div>
-            <div><b>Upload a file</b> or drag it here</div>
-            <div class="muted small">PDF · Word (.docx) · saved web page (.html) · text (.txt) · photo or screenshot</div>
+            <div><b>Upload a file</b> or drag it here — or press <kbd>Ctrl</kbd>+<kbd>V</kbd> to paste a screenshot</div>
+            <div class="muted small">PDF · Word (.docx) · saved web page (.html) · text (.txt) · photos and screenshots (paste several pages one after another)</div>
           </div>
           <div class="progress" id="file-progress" hidden><span></span><div class="bar"><i></i></div></div>
           <div class="error" id="file-error" hidden></div>
@@ -261,9 +261,16 @@
     /* ----- file upload ----- */
     const fileInput = $('#article-file');
     const dz = $('#dropzone');
+    // Files are read one after another. Screenshots are added to the end of
+    // the text so several pages can be pasted in a row; other files replace it.
+    let queue = Promise.resolve();
+    function loadFiles(files) {
+      Array.from(files).forEach((f) => { queue = queue.then(() => loadFile(f)); });
+    }
     async function loadFile(file) {
       const prog = document.getElementById('file-progress');
       const err = document.getElementById('file-error');
+      if (!prog) return;
       err.hidden = true;
       prog.hidden = false;
       try {
@@ -271,11 +278,13 @@
         // Look the fields up again: the page may have been redrawn while the file was read.
         const t = document.getElementById('article-text');
         if (!t) return;
-        t.value = out.text;
-        if (out.title) document.getElementById('article-title').value = out.title;
-        if (out.source) document.getElementById('article-source').value = out.source;
+        const titleEl = document.getElementById('article-title');
+        const append = A2I.isImageFile(file) && t.value.trim();
+        t.value = append ? t.value.trim() + '\n\n' + out.text : out.text;
+        if (out.title && !(append && titleEl.value)) titleEl.value = out.title;
+        if (out.source && !document.getElementById('article-source').value) document.getElementById('article-source').value = out.source;
         t.dispatchEvent(new Event('input'));
-        A2I.toast('Loaded “' + (out.title || file.name) + '” — check the text, then make the test');
+        A2I.toast(append ? 'Added the screenshot’s text to the end — paste the next page, or check the text' : 'Loaded “' + (out.title || file.name) + '” — check the text, then make the test');
       } catch (e) {
         err.textContent = e.message || String(e);
         err.hidden = false;
@@ -285,10 +294,31 @@
     }
     dz.addEventListener('click', () => fileInput.click());
     dz.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); } });
-    fileInput.addEventListener('change', () => { if (fileInput.files[0]) loadFile(fileInput.files[0]); fileInput.value = ''; });
+    fileInput.addEventListener('change', () => { loadFiles(fileInput.files); fileInput.value = ''; });
     ['dragenter', 'dragover'].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.add('over'); }));
     ['dragleave', 'drop'].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.remove('over'); }));
-    dz.addEventListener('drop', (e) => { const f = e.dataTransfer.files[0]; if (f) loadFile(f); });
+    dz.addEventListener('drop', (e) => loadFiles(e.dataTransfer.files));
+
+    // Ctrl+V / Cmd+V anywhere on this page: a copied screenshot is read with OCR.
+    function onPaste(e) {
+      const items = Array.from((e.clipboardData && e.clipboardData.items) || []);
+      const images = items.filter((it) => it.kind === 'file' && it.type.startsWith('image/')).map((it) => it.getAsFile()).filter(Boolean);
+      if (images.length) {
+        e.preventDefault();
+        loadFiles(images.map((f, i) => (f.name && f.name !== 'image.png' ? f : new File([f], 'screenshot-' + (i + 1) + '.png', { type: f.type }))));
+        return;
+      }
+      // Pasted text outside the boxes goes into the article box.
+      const target = e.target;
+      if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
+      const text = e.clipboardData && e.clipboardData.getData('text/plain');
+      if (text) {
+        e.preventDefault();
+        textEl.value = textEl.value.trim() ? textEl.value.trim() + '\n\n' + text : text;
+        textEl.dispatchEvent(new Event('input'));
+      }
+    }
+    document.addEventListener('paste', onPaste);
 
     /* ----- method choice ----- */
     function syncMethod() {
@@ -392,7 +422,10 @@
       }
     });
 
-    cleanup = () => { if (generating) generating.abort(); };
+    cleanup = () => {
+      if (generating) generating.abort();
+      document.removeEventListener('paste', onPaste);
+    };
   }
 
   /* ---------- test view ---------- */

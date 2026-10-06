@@ -143,6 +143,7 @@ details.alt { margin-top: 16px; }
   cursor: pointer; background: var(--surface-2); transition: border-color .15s, background .15s;
 }
 .dropzone:hover, .dropzone:focus-visible, .dropzone.over { border-color: var(--accent); outline: none; }
+kbd { font: 600 .8em ui-monospace, monospace; padding: 1px 5px; border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 4px; background: var(--surface); }
 .dropzone .dz-icon { font-size: 1.8rem; line-height: 1; margin-bottom: 4px; }
 .or { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: .85rem; margin: 16px 0 0; }
 .or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--border); }

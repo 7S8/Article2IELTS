@@ -17,7 +17,9 @@ Turn any newspaper or magazine article (The Atlantic, The Guardian, The Economis
 
 1. Open `index.html` in a browser, or publish the repo with GitHub Pages (Settings → Pages → Deploy from branch).
 2. Click **New test**, then **upload a file** (PDF, Word .docx, a web page saved with “Save page as…”, .txt,
-   or a photo/screenshot of the article) or paste the text.
+   or a photo/screenshot of the article), press **Ctrl+V** to paste a screenshot, or paste the text.
+   Screenshots of magazine pages with several columns are read column by column; paste more screenshots to add
+   the next pages to the end. Reading a screenshot takes about 30 seconds per page.
 3. Choose the question types and how to make the test:
    - **AI questions**: needs an API key, added in Settings. **Google Gemini, Groq and OpenRouter keys are free**;
      Claude gives the best questions but is paid. Keys are stored only in your browser and sent only to the service you choose.
@@ -48,6 +50,8 @@ To add a bundled test, create `tests/<name>.js` in the same format as `tests/sam
 | `js/passage.js` | Showing the passage with dictionary words, highlights and answer locations |
 | `js/generator.js` | Prompt and JSON schema, and calls to Claude, Gemini, Groq and OpenRouter |
 | `js/offline.js` | Basic question maker that needs no AI or key |
-| `js/fileimport.js` | Reading articles from PDF, Word, HTML, text and image files |
+| `js/fileimport.js` | Reading articles from PDF, Word, HTML and text files |
+| `js/ocr.js` | Reading screenshots and photos: finds the columns, reads each one, fixes common misread letters |
+| `js/words-en.js` | English word list (SCOWL) used to fix misread letters |
 | `js/app.js` | Pages: test list, new test, test view, my words, settings |
 | `tests/` | Bundled tests |
