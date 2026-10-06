@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Article2IELTS</title>
+  <meta name="description" content="Turn any newspaper article into an IELTS Academic Reading test with a built-in dictionary, highlighter and answer key.">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#/">Article<span>2</span>IELTS</a>
+    <nav class="topnav">
+      <a href="#/" data-nav="library">My tests</a>
+      <a href="#/new" data-nav="new">New test</a>
+      <a href="#/words" data-nav="words">My words</a>
+      <button type="button" class="linklike" id="open-settings">Settings</button>
+    </nav>
+  </header>
+
+  <main id="app"></main>
+
+  <!-- Floating toolbar shown when text is selected in the passage -->
+  <div id="sel-toolbar" class="sel-toolbar" hidden>
+    <button type="button" class="swatch" data-color="yellow" title="Highlight yellow"></button>
+    <button type="button" class="swatch" data-color="green" title="Highlight green"></button>
+    <button type="button" class="swatch" data-color="pink" title="Highlight pink"></button>
+    <button type="button" class="swatch" data-color="blue" title="Highlight blue"></button>
+    <span class="sep"></span>
+    <button type="button" data-action="define">Define</button>
+    <button type="button" data-action="save">+ My words</button>
+    <button type="button" data-action="unhighlight" hidden>Remove highlight</button>
+  </div>
+
+  <!-- Dictionary popover -->
+  <div id="popover" class="popover" hidden role="dialog" aria-live="polite"></div>
+
+  <!-- Settings dialog -->
+  <dialog id="settings-dialog">
+    <form method="dialog" class="settings">
+      <h2>Settings</h2>
+      <p class="muted">To generate tests automatically, paste a Claude API key from
+        <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>.
+        It is stored only in this browser (localStorage) and sent only to api.anthropic.com.
+        No key? You can still use the “Copy prompt” option on the New test page.</p>
+      <label>Claude API key
+        <input type="password" id="set-key" autocomplete="off" placeholder="sk-ant-...">
+      </label>
+      <label>Model
+        <select id="set-model">
+          <option value="claude-opus-5-5">Claude Opus 5.5 — best questions</option>
+          <option value="claude-sonnet-5-5">Claude Sonnet 5.5 — faster, cheaper</option>
+        </select>
+      </label>
+      <label>Reading timer (minutes, 0 = off)
+        <input type="number" id="set-timer" min="0" max="120" step="1">
+      </label>
+      <div class="row end">
+        <button value="cancel" class="btn ghost">Cancel</button>
+        <button value="save" class="btn primary" id="settings-save">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <!-- Bundled tests: each file adds a test to window.A2I_BUNDLED -->
+  <script src="tests/sample-tiny-forests.js"></script>
+
+  <script src="js/storage.js"></script>
+  <script src="js/passage.js"></script>
+  <script src="js/generator.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
