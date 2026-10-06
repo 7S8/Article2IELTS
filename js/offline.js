@@ -68,42 +68,11 @@
     }).sort((a, b) => b.score - a.score);
   }
 
-  function lemmas(w) {
-    const out = [w];
-    if (/ies$/.test(w)) out.push(w.replace(/ies$/, 'y'));
-    if (/es$/.test(w)) out.push(w.replace(/es$/, ''));
-    if (/s$/.test(w) && !/ss$/.test(w)) out.push(w.replace(/s$/, ''));
-    if (/ied$/.test(w)) out.push(w.replace(/ied$/, 'y'));
-    if (/ed$/.test(w)) out.push(w.replace(/d$/, ''), w.replace(/ed$/, ''), w.replace(/(.)\1ed$/, '$1'));
-    if (/ing$/.test(w)) out.push(w.replace(/ing$/, 'e'), w.replace(/ing$/, ''), w.replace(/(.)\1ing$/, '$1'));
-    if (/ly$/.test(w)) out.push(w.replace(/ly$/, ''));
-    return Array.from(new Set(out));
-  }
-
   async function define(word, signal) {
-    for (const form of lemmas(word)) {
-      try {
-        const res = await fetch('https://api.dictionaryapi.dev/api/v2/entries/en/' + encodeURIComponent(form), { signal });
-        if (!res.ok) continue;
-        const entry = (await res.json())[0];
-        const m = entry.meanings[0];
-        const d = m.definitions[0];
-        const syn = (m.synonyms || []).concat(d.synonyms || []);
-        return {
-          word: entry.word,
-          inText: word,
-          partOfSpeech: m.partOfSpeech || '',
-          definition: d.definition,
-          example: d.example || '',
-          synonyms: Array.from(new Set(syn)).slice(0, 4),
-          level: '',
-        };
-      } catch (e) {
-        if (signal && signal.aborted) throw e;
-        return null; // offline
-      }
-    }
-    return null;
+    const entry = await A2I.lookup(word, signal);
+    if (signal && signal.aborted) throw new DOMException('Aborted', 'AbortError');
+    if (!entry) return null;
+    return Object.assign(A2I.firstSense(entry, word), { inText: word, level: '' });
   }
 
   async function buildVocabulary(cands, onProgress, signal) {

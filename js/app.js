@@ -488,6 +488,15 @@
         <h1>${esc(test.title)}</h1>
         <div class="row">
           <span class="timer" id="timer" title="Click to pause / resume" hidden></span>
+          <div class="menu-wrap">
+            <button class="btn small" id="print-btn" aria-haspopup="true" aria-expanded="false">🖨 Print</button>
+            <div class="menu" id="print-menu" hidden>
+              <button data-print="test">Test (passage + questions)</button>
+              <button data-print="answers">Answer key</button>
+              <button data-print="dictionary">Dictionary</button>
+              <button data-print="all">Everything</button>
+            </div>
+          </div>
           <a class="btn small" href="#/">← My tests</a>
         </div>
       </div>
@@ -507,6 +516,21 @@
     renderSide();
     startTimer();
 
+    const printBtn = document.getElementById('print-btn');
+    const printMenu = document.getElementById('print-menu');
+    printBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      printMenu.hidden = !printMenu.hidden;
+      printBtn.setAttribute('aria-expanded', String(!printMenu.hidden));
+    });
+    printMenu.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-print]');
+      if (!b) return;
+      printMenu.hidden = true;
+      A2I.printTest(cur.test, cur.progress, b.dataset.print, isCorrect);
+    });
+    document.addEventListener('click', closePrintMenu);
+
     app.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => {
       cur.tab = b.dataset.tab;
       app.querySelectorAll('[data-tab]').forEach((x) => x.classList.toggle('active', x === b));
@@ -520,8 +544,70 @@
 
     cleanup = () => {
       if (cur && cur.timer) clearInterval(cur.timer.handle);
+      document.removeEventListener('click', closePrintMenu);
       cur = null;
     };
+  }
+
+  function closePrintMenu(e) {
+    const m = document.getElementById('print-menu');
+    if (m && !m.hidden && !e.target.closest('.menu-wrap')) m.hidden = true;
+  }
+
+  /* Words and short phrases the learner highlighted, added to this test's
+     dictionary with definitions (looked up online). Returns how many were added. */
+  let addingHighlights = null;
+  async function addHighlightsToDictionary() {
+    if (addingHighlights) return addingHighlights;
+    const test = cur.test;
+    const have = new Set();
+    test.vocabulary.forEach((v) => { have.add(v.word.toLowerCase()); have.add((v.inText || '').toLowerCase()); });
+    const texts = [];
+    cur.progress.highlights.forEach((h) => {
+      const t = test.paragraphs[h.p].slice(h.start, h.end).replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '').replace(/\s+/g, ' ');
+      const k = t.toLowerCase();
+      if (t && A2I.wordCount(t) <= 4 && !have.has(k)) { have.add(k); texts.push(t); }
+    });
+    if (!texts.length) return 0;
+    addingHighlights = (async () => {
+      const added = [];
+      let i = 0;
+      const worker = async () => {
+        while (i < texts.length) {
+          const t = texts[i++];
+          const entry = await A2I.lookup(t);
+          const sense = A2I.firstSense(entry, t);
+          added.push({
+            word: entry && sense.word.toLowerCase() !== t.toLowerCase() ? sense.word : t,
+            inText: t,
+            partOfSpeech: sense.partOfSpeech,
+            definition: sense.definition || 'No definition found online — try the Cambridge dictionary.',
+            example: sense.example,
+            synonyms: sense.synonyms,
+            level: '',
+            mine: true,
+          });
+        }
+      };
+      await Promise.all([worker(), worker(), worker(), worker()]);
+      if (!cur || cur.test !== test) return added.length;
+      // Keep passage order.
+      const pos = (v) => { const i2 = test.paragraphs.join(' ').toLowerCase().indexOf(v.inText.toLowerCase()); return i2 < 0 ? 1e9 : i2; };
+      added.sort((a, b) => pos(a) - pos(b));
+      test.vocabulary = added.concat(test.vocabulary);
+      store.saveTest(test);
+      cur.vocabHits = A2I.findVocab(test.paragraphs, test.vocabulary);
+      renderPassage();
+      if (cur.tab === 'glossary') renderSide();
+      const tab = document.querySelector('[data-tab=glossary]');
+      if (tab) tab.textContent = 'Dictionary (' + test.vocabulary.length + ')';
+      return added.length;
+    })();
+    try {
+      return await addingHighlights;
+    } finally {
+      addingHighlights = null;
+    }
   }
 
   function saveProgress() {
@@ -691,6 +777,11 @@
       stopTimer();
       renderQuestions(body);
       document.getElementById('side').scrollTop = 0;
+      if (cur.progress.highlights.length) {
+        addHighlightsToDictionary().then((n) => {
+          if (n) A2I.toast(`Added ${n} highlighted word${n === 1 ? '' : 's'} to the Dictionary tab`);
+        });
+      }
     });
     const retry = body.querySelector('#retry');
     if (retry) retry.addEventListener('click', () => {
@@ -744,7 +835,7 @@
   function glossaryItemHTML(v, i, opts) {
     opts = opts || {};
     return `<div class="glossary-item">
-      <div><span class="w">${esc(v.word)}</span>${v.partOfSpeech ? `<span class="pos">${esc(v.partOfSpeech)}</span>` : ''}${v.level ? `<span class="lvl">${esc(v.level)}</span>` : ''}</div>
+      <div><span class="w">${esc(v.word)}</span>${v.partOfSpeech ? `<span class="pos">${esc(v.partOfSpeech)}</span>` : ''}${v.level ? `<span class="lvl">${esc(v.level)}</span>` : ''}${v.mine ? '<span class="lvl mine">my highlight</span>' : ''}</div>
       <div class="def-blur">${esc(v.definition)}</div>
       ${v.example ? `<div class="ex def-blur">“${esc(v.example)}”</div>` : ''}
       ${v.synonyms && v.synonyms.length ? `<div class="syn def-blur"><span class="muted">Synonyms:</span> ${v.synonyms.map(esc).join(', ')}</div>` : ''}
@@ -767,12 +858,25 @@
     const vocab = cur.test.vocabulary;
     body.innerHTML = `
       <p class="muted small" style="margin-top:0">Key words from this article. Dotted words in the passage open these definitions. Double-click any other word to look it up.</p>
-      <label class="chip" style="margin-bottom:8px"><input type="checkbox" id="hide-defs"> Quiz me (hide definitions — click to reveal)</label>
+      <div class="row" style="margin-bottom:8px">
+        <label class="chip"><input type="checkbox" id="hide-defs"> Quiz me (hide definitions — click to reveal)</label>
+        ${cur.progress.highlights.length ? '<button class="btn small" id="add-hl">+ Add my highlighted words</button>' : ''}
+        <button class="btn small ghost" id="print-dict">🖨 Print</button>
+      </div>
       <div id="gloss-list">${vocab.length
         ? vocab.map((v, i) => glossaryItemHTML(v, i, { inPassage: true, save: true })).join('')
         : '<p class="muted">This test has no dictionary.</p>'}</div>`;
     bindGlossaryActions(body);
     body.querySelector('#hide-defs').addEventListener('change', (e) => body.querySelector('#gloss-list').classList.toggle('hide-defs', e.target.checked));
+    body.querySelector('#print-dict').addEventListener('click', () => A2I.printTest(cur.test, cur.progress, 'dictionary', isCorrect));
+    const addHl = body.querySelector('#add-hl');
+    if (addHl) addHl.addEventListener('click', async () => {
+      addHl.disabled = true;
+      addHl.textContent = 'Looking up…';
+      const n = await addHighlightsToDictionary();
+      A2I.toast(n ? `Added ${n} highlighted word${n === 1 ? '' : 's'}` : 'Your highlighted words are already in the dictionary (phrases longer than 4 words are skipped)');
+      if (document.body.contains(addHl)) { addHl.disabled = false; addHl.textContent = '+ Add my highlighted words'; }
+    });
     body.querySelectorAll('[data-save]').forEach((b) => b.addEventListener('click', () => saveVocab(vocab[Number(b.dataset.save)])));
     body.querySelectorAll('[data-find]').forEach((b) => b.addEventListener('click', () => {
       const vi = Number(b.dataset.find);
@@ -992,7 +1096,6 @@
     popover.querySelector('[data-pop=save]').onclick = () => saveVocab(v, context);
   }
 
-  const lookupCache = {};
 
   async function lookupWord(word, rect, context, saveAfter) {
     if (!word) return;
@@ -1001,40 +1104,23 @@
     placeNear(popover, rect);
     popover.querySelector('.close').onclick = () => { popover.hidden = true; };
 
-    let entry = null;
     const key = word.toLowerCase();
-    try {
-      if (!(key in lookupCache)) {
-        const res = await fetch('https://api.dictionaryapi.dev/api/v2/entries/en/' + encodeURIComponent(key));
-        lookupCache[key] = res.ok ? (await res.json())[0] : null;
-      }
-      entry = lookupCache[key];
-    } catch (e) {
-      entry = undefined; // network error
-    }
-
+    const entry = await A2I.lookup(word);
     const meanings = entry ? entry.meanings.slice(0, 3) : [];
-    const first = meanings[0];
-    const firstDef = first ? first.definitions[0] : null;
-    const result = {
-      word: entry ? entry.word : word,
-      partOfSpeech: first ? first.partOfSpeech : '',
-      definition: firstDef ? firstDef.definition : '',
-      example: firstDef && firstDef.example ? firstDef.example : '',
-      synonyms: first ? (first.synonyms || []).slice(0, 5) : [],
-    };
+    const result = A2I.firstSense(entry, word);
+    if (result.word.toLowerCase() === word.toLowerCase()) result.word = word; // keep the article's capitals
     if (saveAfter) {
       saveVocab(result, context);
       popover.hidden = true;
       return;
     }
-    const phon = entry && (entry.phonetic || (entry.phonetics.find((p) => p.text) || {}).text);
-    const audio = entry && (entry.phonetics.find((p) => p.audio) || {}).audio;
+    const phon = entry && entry.phonetic;
+    const audio = entry && entry.audio;
     popover.innerHTML = `<button class="close" aria-label="Close">×</button>
       <div><span class="w">${esc(result.word)}</span>${phon ? `<span class="phon">${esc(phon)}</span>` : ''}</div>
       ${entry ? meanings.map((m) => `<div style="margin-top:6px"><span class="pos">${esc(m.partOfSpeech)}</span>
         <ol>${m.definitions.slice(0, 2).map((d) => `<li>${esc(d.definition)}${d.example ? `<div class="ex">“${esc(d.example)}”</div>` : ''}</li>`).join('')}</ol></div>`).join('')
-        : `<p class="muted">${entry === undefined ? 'Could not reach the online dictionary.' : 'No dictionary entry found.'} You can still save it and add your own note.</p>`}
+        : '<p class="muted">No dictionary entry found (or the online dictionaries could not be reached). Try Cambridge below, or save the word anyway.</p>'}
       <div class="actions">
         <button class="btn small" data-pop="say">🔊 Listen</button>
         <button class="btn small" data-pop="save">+ My words</button>

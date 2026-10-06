@@ -267,6 +267,7 @@
       example: str(v.example),
       synonyms: arr(v.synonyms).map(str).filter(Boolean),
       level: str(v.level),
+      mine: !!v.mine,
     })).filter((v) => v.word && v.definition);
 
     return {

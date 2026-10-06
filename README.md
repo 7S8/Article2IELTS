@@ -12,6 +12,10 @@ Turn any newspaper or magazine article (The Atlantic, The Guardian, The Economis
 - **Answer key**: score, an estimated band, the correct answers with explanations, and **Show in passage**,
   which highlights the sentence each answer comes from.
 - 20-minute timer (can be changed in Settings), and answers are saved as you go.
+- **Your highlights become vocabulary**: when you check your answers, the words and short phrases (up to 4 words) you
+  highlighted are added to the test’s Dictionary with definitions.
+- **Print** the test (passage with your highlights + questions with answer lines), the answer key, the dictionary, or all
+  of them — or “Save as PDF” from the print window.
 
 ## How to use
 
@@ -48,6 +52,8 @@ To add a bundled test, create `tests/<name>.js` in the same format as `tests/sam
 | `css/style.css` | Styles (light and dark mode) |
 | `js/storage.js` | Saving to the browser, backups, splitting paragraphs, checking test JSON |
 | `js/passage.js` | Showing the passage with dictionary words, highlights and answer locations |
+| `js/dictionary.js` | Free word look-up (dictionaryapi.dev and Wiktionary, with a time limit) |
+| `js/print.js` | Printable test, answer key and dictionary |
 | `js/generator.js` | Prompt and JSON schema, and calls to Claude, Gemini, Groq and OpenRouter |
 | `js/offline.js` | Basic question maker that needs no AI or key |
 | `js/fileimport.js` | Reading articles from PDF, Word, HTML and text files |

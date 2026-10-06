@@ -307,3 +307,13 @@ dialog::backdrop { background: rgba(0, 0, 0, .4); }
   position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 100;
   background: var(--text); color: var(--surface); padding: 10px 16px; border-radius: 10px; box-shadow: var(--shadow);
 }
+
+/* print menu */
+.menu-wrap { position: relative; }
+.menu {
+  position: absolute; right: 0; top: calc(100% + 4px); z-index: 30; min-width: 220px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 4px;
+}
+.menu button { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 8px 10px; border-radius: 6px; font: inherit; color: var(--text); cursor: pointer; }
+.menu button:hover { background: var(--surface-2); }
+.glossary-item .lvl.mine { background: var(--hl-yellow); color: var(--text); }
