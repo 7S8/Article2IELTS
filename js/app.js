@@ -193,11 +193,15 @@
             <input type="file" id="article-file" hidden multiple
               accept=".pdf,.docx,.txt,.md,.html,.htm,.rtf,image/*,application/pdf,text/plain,text/html">
             <div class="dz-icon" aria-hidden="true">📄</div>
-            <div><b>Upload a file</b> or drag it here — or press <kbd>Ctrl</kbd>+<kbd>V</kbd> to paste a screenshot</div>
+            <div><b>Upload a file</b> or drag it here — or press <kbd>Ctrl</kbd>+<kbd>V</kbd> to paste a screenshot or a link</div>
             <div class="muted small">PDF · Word (.docx) · saved web page (.html) · text (.txt) · photos and screenshots (paste several pages one after another)</div>
           </div>
           <div class="progress" id="file-progress" hidden><span></span><div class="bar"><i></i></div></div>
           <div class="error" id="file-error" hidden></div>
+          <form class="url-row" id="url-form" novalidate>
+            <input type="url" id="article-url" placeholder="…or paste a link to the article, e.g. https://www.theatlantic.com/…" autocomplete="off" spellcheck="false">
+            <button class="btn" type="submit">Import</button>
+          </form>
           <div class="or"><span>or paste the text</span></div>
           <label>Headline <input type="text" id="article-title" placeholder="e.g. The Case for Boredom"></label>
           <label>Source (optional) <input type="text" id="article-source" placeholder="e.g. The Atlantic, March 2026"></label>
@@ -360,6 +364,36 @@
     ['dragleave', 'drop'].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.remove('over'); }));
     dz.addEventListener('drop', (e) => loadFiles(e.dataTransfer.files));
 
+    // A link to an article.
+    async function loadURL(url) {
+      const prog = document.getElementById('file-progress');
+      const err = document.getElementById('file-error');
+      if (!prog || !url.trim()) return;
+      err.hidden = true;
+      prog.hidden = false;
+      try {
+        const out = await A2I.readArticleURL(url, (m) => { prog.querySelector('span').textContent = m; });
+        const t = document.getElementById('article-text');
+        if (!t) return;
+        t.value = out.text;
+        if (out.title) document.getElementById('article-title').value = out.title;
+        document.getElementById('article-source').value = out.source + (out.url ? ' — ' + out.url : '');
+        t.dispatchEvent(new Event('input'));
+        A2I.toast(out.short
+          ? 'Only part of the article could be read (probably a paywall). Check the text, or use a screenshot / “Save page as…”.'
+          : 'Loaded “' + (out.title || out.source) + '” — check the text, then make the test');
+      } catch (e) {
+        err.textContent = e.message || String(e);
+        err.hidden = false;
+      } finally {
+        prog.hidden = true;
+      }
+    }
+    $('#url-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      queue = queue.then(() => loadURL($('#article-url').value));
+    });
+
     // Ctrl+V / Cmd+V anywhere on this page: a copied screenshot is read with OCR.
     function onPaste(e) {
       const items = Array.from((e.clipboardData && e.clipboardData.items) || []);
@@ -373,6 +407,12 @@
       const target = e.target;
       if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
       const text = e.clipboardData && e.clipboardData.getData('text/plain');
+      if (text && /^\s*https?:\/\/\S+\s*$/.test(text)) {
+        e.preventDefault();
+        $('#article-url').value = text.trim();
+        queue = queue.then(() => loadURL(text.trim()));
+        return;
+      }
       if (text) {
         e.preventDefault();
         textEl.value = textEl.value.trim() ? textEl.value.trim() + '\n\n' + text : text;

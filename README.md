@@ -26,7 +26,9 @@ Turn any newspaper or magazine article (The Atlantic, The Guardian, The Economis
    Create an account (name, email, password). Accounts and all data are stored in this browser only — use
    **Save backup** to move them to another device.
 2. Click **New test**, then **upload a file** (PDF, Word .docx, a web page saved with “Save page as…”, .txt,
-   or a photo/screenshot of the article), press **Ctrl+V** to paste a screenshot, or paste the text.
+   or a photo/screenshot of the article), **paste a link** to the article (or press Ctrl+V with a copied link),
+   press **Ctrl+V** to paste a screenshot, or paste the text. Links are read through the free Jina Reader
+   (r.jina.ai) or public CORS relays; paywalled articles may come back only partly.
    Screenshots of magazine pages with several columns are read column by column; paste more screenshots to add
    the next pages to the end. Reading a screenshot takes about 30 seconds per page.
 3. Choose the question types and how to make the test:

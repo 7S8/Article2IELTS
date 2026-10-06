@@ -129,6 +129,87 @@
   /* ---------- photo / screenshot: see ocr.js ---------- */
 
   A2I.loadScript = loadScript;
+  A2I.articleFromHTML = fromHTML;
+
+  /* ---------- article from a web link ----------
+     Browsers may not read other websites directly, so the page is fetched
+     through free services: Jina Reader first (it returns the clean article
+     text), then two public relays that return the raw page. */
+
+  const SITE_NAMES = {
+    theatlantic: 'The Atlantic', theguardian: 'The Guardian', nytimes: 'The New York Times', economist: 'The Economist',
+    newyorker: 'The New Yorker', washingtonpost: 'The Washington Post', bbc: 'BBC', wired: 'Wired', ft: 'Financial Times',
+    scientificamerican: 'Scientific American', nationalgeographic: 'National Geographic', newscientist: 'New Scientist',
+    vox: 'Vox', time: 'TIME', forbes: 'Forbes', bloomberg: 'Bloomberg', reuters: 'Reuters', aeon: 'Aeon', independent: 'The Independent',
+  };
+
+  const READER = A2I.URL_READER || 'https://r.jina.ai/';
+  const RELAYS = A2I.URL_RELAYS || [
+    (u) => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
+    (u) => 'https://corsproxy.io/?url=' + encodeURIComponent(u),
+  ];
+
+  async function fetchText(url, ms) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), ms);
+    try {
+      const res = await fetch(url, { signal: ctrl.signal });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return await res.text();
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  /* Turn Jina Reader's Markdown into plain paragraphs. */
+  function fromReaderMarkdown(md) {
+    const title = (md.match(/^Title:\s*(.+)$/m) || [])[1] || '';
+    const body = md.includes('Markdown Content:') ? md.split('Markdown Content:')[1] : md;
+    const paras = body
+      .replace(/\r/g, '')
+      .split(/\n\s*\n/)
+      .map((p) => p
+        .replace(/!\[[^\]]*\]\([^)]*\)/g, '') // images
+        .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1') // links → their text
+        .replace(/^#{1,6}\s+/gm, '')
+        .replace(/^\s*[-*+>]\s+/gm, '')
+        .replace(/[*_`]{1,3}/g, '')
+        .replace(/\s+/g, ' ')
+        .trim())
+      // Keep real prose: long enough, and not menus or captions.
+      .filter((p) => A2I.wordCount(p) >= 12 && /[.!?"”’)]$/.test(p));
+    return { title: title.trim(), source: '', text: paras.join('\n\n') };
+  }
+
+  A2I.readArticleURL = async function (url, onProgress) {
+    onProgress = onProgress || function () {};
+    url = String(url || '').trim();
+    if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+    let host;
+    try { host = new URL(url).hostname.replace(/^www\./, ''); } catch (e) { throw new Error('That does not look like a web address.'); }
+
+    const tries = [
+      { name: 'reader', run: async () => fromReaderMarkdown(await fetchText(READER + url, 30000)) },
+    ].concat(RELAYS.map((relay, i) => ({ name: 'relay ' + (i + 1), run: async () => fromHTML(await fetchText(relay(url), 20000)) })));
+
+    let best = null;
+    for (const t of tries) {
+      onProgress('Opening ' + host + '…' + (best ? ' (trying another way)' : ''));
+      try {
+        const out = await t.run();
+        if (!best || A2I.wordCount(out.text) > A2I.wordCount(best.text)) best = out;
+        if (A2I.wordCount(out.text) >= 250) break;
+      } catch (e) { /* try the next way */ }
+    }
+    if (!best || A2I.wordCount(best.text) < 80) {
+      throw new Error('Could not get the article from ' + host + '. The site may block this or need a subscription. Open the article in your browser and use “Save page as…”, a screenshot (Ctrl+V), or copy the text instead.');
+    }
+    const site = host.split('.').slice(-2, -1)[0] || host;
+    best.source = best.source || SITE_NAMES[site] || site.charAt(0).toUpperCase() + site.slice(1);
+    best.url = url;
+    best.short = A2I.wordCount(best.text) < 250; // probably cut off by a paywall
+    return best;
+  };
   A2I.isImageFile = function (file) {
     return (file.type || '').startsWith('image/') || /\.(png|jpe?g|webp|bmp|gif)$/i.test(file.name || '');
   };
