@@ -100,7 +100,7 @@ main { padding: 16px; max-width: 1400px; margin: 0 auto; }
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 16px;
 }
-input[type=text], input[type=password], input[type=number], textarea, select {
+input[type=text], input[type=email], input[type=password], input[type=number], textarea, select {
   width: 100%; padding: 8px 10px; border-radius: 8px;
   border: 1px solid var(--border); background: var(--surface); color: var(--text);
   font: inherit;
@@ -317,3 +317,58 @@ dialog::backdrop { background: rgba(0, 0, 0, .4); }
 .menu button { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 8px 10px; border-radius: 6px; font: inherit; color: var(--text); cursor: pointer; }
 .menu button:hover { background: var(--surface-2); }
 .glossary-item .lvl.mine { background: var(--hl-yellow); color: var(--text); }
+
+/* sign up / log in */
+.auth-wrap { min-height: calc(100vh - 140px); display: grid; place-items: center; }
+.auth-card { width: min(440px, 100%); padding: 24px; }
+.auth-card h1 { margin: 0 0 4px; font-family: var(--serif); }
+
+/* dashboard */
+.good { color: var(--ok); font-weight: 600; }
+.bad { color: var(--bad); font-weight: 600; }
+.tiles { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin: 16px 0; }
+.tile { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+.tile .big { font: 700 2rem/1.2 var(--serif); margin: 2px 0; }
+.dash-grid { display: grid; gap: 16px; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); }
+@media (max-width: 900px) { .dash-grid { grid-template-columns: 1fr; } }
+.dash h2 { margin: 0 0 10px; font-size: 1.1rem; }
+.chart { width: 100%; height: auto; display: block; overflow: visible; }
+.chart .grid { stroke: var(--border); stroke-width: 1; }
+.chart .target { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 4 4; }
+.chart .tick { fill: var(--muted); font: 11px var(--sans); }
+.chart .val { fill: var(--text); font: 600 12px var(--sans); }
+.chart .line { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.chart .dot { fill: var(--accent); stroke: var(--surface); stroke-width: 2; }
+.chart .hit { fill: transparent; }
+.chart .pt:hover .dot { r: 6; }
+.advice { margin: 0; padding-left: 18px; }
+.advice li { margin-bottom: 8px; }
+.bars { display: grid; gap: 8px; }
+.bar-row { display: grid; grid-template-columns: minmax(120px, 200px) 1fr 110px 110px; gap: 10px; align-items: center; }
+@media (max-width: 640px) { .bar-row { grid-template-columns: 1fr 90px; } .bar-row .bar-track { grid-column: 1 / -1; order: 3; } }
+.bar-label { font-size: .92rem; }
+.bar-track { height: 10px; background: var(--surface-2); border-radius: 5px; overflow: hidden; }
+.bar-fill { height: 100%; background: var(--vocab); border-radius: 0 4px 4px 0; }
+.bar-val { font-size: .9rem; font-variant-numeric: tabular-nums; }
+.table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+.table th, .table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+.table th { color: var(--muted); font-weight: 600; }
+
+/* flashcards */
+.fc-progress { height: 4px; background: var(--surface-2); border-radius: 2px; overflow: hidden; margin-bottom: 6px; }
+.fc-progress > div { height: 100%; background: var(--accent); }
+.fc-card {
+  min-height: 260px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  text-align: center; padding: 28px 24px; cursor: pointer; user-select: none;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow);
+}
+.fc-card.flipped { background: var(--surface-2); }
+.fc-word { font: 700 2rem/1.2 var(--serif); }
+.fc-def { font-size: 1.15rem; max-width: 560px; }
+.fc-context { color: var(--muted); font-style: italic; max-width: 560px; }
+.fc-hint { margin-top: 10px; }
+.fc-actions { display: flex; gap: 8px; justify-content: center; margin-top: 16px; flex-wrap: wrap; }
+.fc-actions .kbd { font-size: .75rem; opacity: .6; margin-left: 4px; }
+.fc-again { border-color: var(--bad); color: var(--bad); }
+.fc-good { border-color: var(--vocab); color: var(--vocab); }
+.fc-easy { border-color: var(--ok); color: var(--ok); }

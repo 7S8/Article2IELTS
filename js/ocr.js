@@ -511,30 +511,50 @@
 
   /* ---------- main ---------- */
 
-  let workerPromise = null;
-  async function getWorker(onProgress) {
-    if (!workerPromise) {
-      workerPromise = (async () => {
+  /* Several readers run side by side: one per spare CPU core (up to 4). */
+  const POOL_SIZE = Math.max(1, Math.min(4, (navigator.hardwareConcurrency || 2) - 1));
+  let poolPromise = null;
+  function getWorkers(onProgress) {
+    if (!poolPromise) {
+      poolPromise = (async () => {
         await A2I.loadScript(TESS.script);
         onProgress('Downloading the text reader (first time only)…');
-        const worker = await window.Tesseract.createWorker('eng', 1, {
-          workerPath: TESS.workerPath,
-          corePath: TESS.corePath,
-          langPath: TESS.langPath,
-        });
-        await worker.setParameters({ tessedit_pageseg_mode: '6' });
-        return worker;
+        const make = async () => {
+          const w = await window.Tesseract.createWorker('eng', 1, {
+            workerPath: TESS.workerPath,
+            corePath: TESS.corePath,
+            langPath: TESS.langPath,
+          });
+          await w.setParameters({ tessedit_pageseg_mode: '6' });
+          return w;
+        };
+        const first = await make(); // the first one downloads and caches the language data
+        const rest = await Promise.all(Array.from({ length: POOL_SIZE - 1 }, make).map((p) => p.catch(() => null)));
+        return [first].concat(rest.filter(Boolean));
       })().catch((e) => {
-        workerPromise = null;
+        poolPromise = null;
         throw e;
       });
     }
-    return workerPromise;
+    return poolPromise;
+  }
+
+  /* Run tasks (async functions that take a worker) on all workers at once. */
+  async function runPool(workers, tasks, onEach) {
+    let next = 0;
+    await Promise.all(workers.map(async (w) => {
+      while (next < tasks.length) {
+        const t = tasks[next++];
+        await t(w);
+        if (onEach) onEach();
+      }
+    }));
   }
 
   A2I.ocrImage = async function (blob, onProgress) {
     onProgress = onProgress || function () {};
     onProgress('Preparing the image…');
+    const dictReady = loadDict().catch(() => null); // spelling fixes are optional
     const img = await loadImage(blob);
     const s0 = baseScale(img);
     const main = prepare(img, s0);
@@ -545,52 +565,60 @@
     if (!leaves.length) throw new Error('No text found in the image.');
     if (leaves.length > 80) leaves = [{ x0: 0, y0: 0, x1: W, y1: H }]; // very busy image: read it whole
     // Extra readings at other sizes for the vote (skipped for huge photos).
-    const passes = A2I.OCR_PASSES || 3;
-    const extra = [s0 * 0.83, s0 * 1.33].slice(0, passes - 1).filter((sc) => img.width * sc <= 4200).map((sc) => prepare(img, sc));
+    const extra = [s0 * 0.83, s0 * 1.33].filter((sc) => img.width * sc <= 4200).map((sc) => prepare(img, sc));
+    const images = [main].concat(extra);
 
-    const worker = await getWorker(onProgress);
+    const workers = await getWorkers(onProgress);
+    const pad = Math.round(Math.min(12, W * 0.004));
+    const rectFor = (r, k) => {
+      const x0 = Math.max(0, r.x0 - pad) * k;
+      const y0 = Math.max(0, r.y0 - pad) * k;
+      return { left: Math.round(x0), top: Math.round(y0), width: Math.round(Math.min(W, r.x1 + pad) * k - x0), height: Math.round(Math.min(H, r.y1 + pad) * k - y0) };
+    };
+
+    // Every block × every size is one task; biggest blocks first so no worker is left waiting at the end.
+    const readings = leaves.map(() => []);
+    const order = leaves.map((r, i) => i).sort((a, b) => (leaves[b].x1 - leaves[b].x0) * (leaves[b].y1 - leaves[b].y0) - (leaves[a].x1 - leaves[a].x0) * (leaves[a].y1 - leaves[a].y0));
+    const tasks = [];
+    order.forEach((i) => images.forEach((im, k) => tasks.push(async (w) => {
+      readings[i][k] = linesOf(await w.recognize(im.canvas, { rectangle: rectFor(leaves[i], im.scale / s0) }, { blocks: true }));
+    })));
+    let finished = 0;
+    onProgress('Reading the text… 0%');
+    await runPool(workers, tasks, () => { finished++; onProgress('Reading the text… ' + Math.round((finished / tasks.length) * 100) + '%'); });
+
     const blocks = [];
     blocks.pageH = H;
-    const pad = Math.round(Math.min(12, W * 0.004));
-    for (let i = 0; i < leaves.length; i++) {
-      const r = leaves[i];
-      onProgress('Reading the text… part ' + (i + 1) + ' of ' + leaves.length);
-      const rectFor = (k) => {
-        const x0 = Math.max(0, r.x0 - pad) * k;
-        const y0 = Math.max(0, r.y0 - pad) * k;
-        return { left: Math.round(x0), top: Math.round(y0), width: Math.round((Math.min(W, r.x1 + pad)) * k - x0), height: Math.round((Math.min(H, r.y1 + pad)) * k - y0) };
-      };
-      const lines = linesOf(await worker.recognize(canvas, { rectangle: rectFor(1) }, { blocks: true }));
-      if (extra.length && lines.length) {
-        const runs = [lines.flatMap((l) => l.words)];
-        for (const ex of extra) {
-          const k = ex.scale / s0;
-          runs.push(linesOf(await worker.recognize(ex.canvas, { rectangle: rectFor(k) }, { blocks: true })).flatMap((l) => l.words));
-        }
-        const voted = vote(runs);
+    const capTasks = [];
+    leaves.forEach((r, i) => {
+      const lines = readings[i][0] || [];
+      if (lines.length && images.length > 1) {
+        const voted = vote(readings[i].map((ls) => (ls || []).flatMap((l) => l.words)));
         let n = 0;
         lines.forEach((l) => { l.words = voted.slice(n, n + l.words.length); n += l.words.length; });
       }
       lines.forEach((l) => { l.text = l.words.map((w) => w.text).join(' '); });
-
       // A large first letter (drop cap) is often missed: read it on its own.
       const first = lines[0];
       if (first && /^[a-z]/.test(first.text) && first.x0 - r.x0 > first.h * 2) {
-        await worker.setParameters({ tessedit_pageseg_mode: '10' });
-        const capRes = await worker.recognize(canvas, { rectangle: {
-          left: Math.max(0, r.x0 - pad), top: Math.max(0, r.y0 - pad),
-          width: first.x0 - r.x0, height: Math.min(r.y1 - r.y0, first.h * 5) + pad,
-        } });
-        await worker.setParameters({ tessedit_pageseg_mode: '6' });
-        const ch = (capRes.data.text || '').trim().replace(/^[^A-Za-z]+/, '').charAt(0);
-        if (/[A-Za-z]/.test(ch)) first.text = ch.toUpperCase() + first.text;
+        capTasks.push(async (w) => {
+          await w.setParameters({ tessedit_pageseg_mode: '10' });
+          const capRes = await w.recognize(canvas, { rectangle: {
+            left: Math.max(0, r.x0 - pad), top: Math.max(0, r.y0 - pad),
+            width: first.x0 - r.x0, height: Math.min(r.y1 - r.y0, first.h * 5) + pad,
+          } });
+          await w.setParameters({ tessedit_pageseg_mode: '6' });
+          const ch = (capRes.data.text || '').trim().replace(/^[^A-Za-z]+/, '').charAt(0);
+          if (/[A-Za-z]/.test(ch)) first.text = ch.toUpperCase() + first.text;
+        });
       }
-      blocks.push({ x0: r.x0, x1: r.x1, y0: r.y0, y1: r.y1, lines: lines.filter((l) => l.text) });
-    }
+      blocks.push({ x0: r.x0, x1: r.x1, y0: r.y0, y1: r.y1, lines });
+    });
+    if (capTasks.length) await runPool(workers, capTasks);
+    blocks.forEach((b) => { b.lines = b.lines.filter((l) => l.text); });
+
     const out = assemble(blocks);
-    try {
-      await loadDict();
-    } catch (e) { /* spelling fixes are optional */ }
+    await dictReady;
     out.text = resolveHyphens(out.text);
     if (dict) out.text = correctText(out.text);
     return out;

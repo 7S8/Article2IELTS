@@ -17,15 +17,22 @@ Turn any newspaper or magazine article (The Atlantic, The Guardian, The Economis
 - **Print** the test (passage with your highlights + questions with answer lines), the answer key, the dictionary, or all
   of them — or “Save as PDF” from the print window.
 
+- **Account, dashboard and flashcards**: sign up to see your current band, band over time, strengths and weak
+  question types with tips, and review your words with spaced-repetition flashcards.
+
 ## How to use
 
 1. Open `index.html` in a browser, or publish the repo with GitHub Pages (Settings → Pages → Deploy from branch).
+   Create an account (name, email, password). Accounts and all data are stored in this browser only — use
+   **Save backup** to move them to another device.
 2. Click **New test**, then **upload a file** (PDF, Word .docx, a web page saved with “Save page as…”, .txt,
    or a photo/screenshot of the article), press **Ctrl+V** to paste a screenshot, or paste the text.
    Screenshots of magazine pages with several columns are read column by column; paste more screenshots to add
    the next pages to the end. Reading a screenshot takes about 30 seconds per page.
 3. Choose the question types and how to make the test:
-   - **AI questions**: needs an API key, added in Settings. **Google Gemini, Groq and OpenRouter keys are free**;
+   - **AI questions**: needs an API key, which you can paste right on the New test page. Each question type and the
+     dictionary are written at the same time in separate requests, so a test usually takes seconds, not minutes;
+     **Groq** is the fastest free service. **Google Gemini, Groq and OpenRouter keys are free**;
      Claude gives the best questions but is paid. Keys are stored only in your browser and sent only to the service you choose.
    - **Basic questions — free, no key**: made instantly in your browser without AI (True/False, gap fills,
      word-bank summary, matching paragraphs, vocabulary). Simpler than the real test. Dictionary definitions come from
@@ -60,4 +67,5 @@ To add a bundled test, create `tests/<name>.js` in the same format as `tests/sam
 | `js/ocr.js` | Reading screenshots and photos: finds the columns, reads each one, fixes common misread letters |
 | `js/words-en.js` | English word list (SCOWL) used to fix misread letters |
 | `js/app.js` | Pages: test list, new test, test view, my words, settings |
+| `js/views.js` | Sign up / log in, dashboard, flashcards |
 | `tests/` | Bundled tests |

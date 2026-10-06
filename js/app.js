@@ -17,6 +17,7 @@
     toastTimer = setTimeout(() => { t.hidden = true; }, 2600);
   };
 
+  A2I.speak = speak;
   function speak(word) {
     try {
       const u = new SpeechSynthesisUtterance(word);
@@ -80,8 +81,20 @@
       a.classList.toggle('active', a.dataset.nav === (view || 'library'));
     });
     window.scrollTo(0, 0);
+    const user = A2I.auth.user();
+    document.querySelector('.topnav').hidden = !user;
+    if (!user) {
+      return A2I.renderAuth(app, () => {
+        A2I.toast('Welcome, ' + A2I.auth.user().name + '!');
+        if (location.hash === '#/dashboard') route();
+        else location.hash = '#/dashboard';
+      });
+    }
+    document.getElementById('logout').textContent = 'Log out (' + user.name + ')';
     if (view === 'new') return renderNew();
     if (view === 'words') return renderWords();
+    if (view === 'dashboard') return A2I.renderDashboard(app);
+    if (view === 'cards') { cleanup = A2I.renderCards(app); return; }
     if (view === 'test' && id) return renderTest(decodeURIComponent(id));
     return renderLibrary();
   }
@@ -223,6 +236,12 @@
                 <label>AI service
                   <select id="ai-provider">${Object.entries(A2I.PROVIDERS).map(([id, p]) => `<option value="${id}" ${id === settings.provider ? 'selected' : ''}>${esc(p.label)}</option>`).join('')}</select>
                 </label>
+                <label>Speed
+                  <select id="ai-speed">
+                    <option value="fast" ${settings.speed !== 'best' ? 'selected' : ''}>Fast (recommended)</option>
+                    <option value="best" ${settings.speed === 'best' ? 'selected' : ''}>Best quality (slower)</option>
+                  </select>
+                </label>
                 <label>API key <a id="ai-key-link" class="small" target="_blank" rel="noopener" href="#" style="font-weight:400;float:right"></a>
                   <input type="password" id="ai-key" autocomplete="off" placeholder="Paste your key">
                 </label>
@@ -265,6 +284,40 @@
         (words > 2500 ? ' · long article — consider using only part of it (IELTS passages are ~700–950 words)' : '');
     };
     textEl.addEventListener('input', updateStats);
+
+    /* ----- draft: the form survives page redraws, settings changes and reloads ----- */
+    const draftNow = store.getDraft();
+    if (draftNow) {
+      $('#article-title').value = draftNow.title || '';
+      $('#article-source').value = draftNow.source || '';
+      textEl.value = draftNow.text || '';
+      if (draftNow.count) $('#q-count').value = String(draftNow.count);
+      if (draftNow.difficulty) $('#q-diff').value = draftNow.difficulty;
+      if (Array.isArray(draftNow.types)) app.querySelectorAll('#q-types input').forEach((i) => { i.checked = draftNow.types.includes(i.value); });
+      if (draftNow.method) {
+        const r = app.querySelector('input[name=method][value="' + draftNow.method + '"]');
+        if (r) r.checked = true;
+      }
+      updateStats();
+    }
+    let draftTimer = null;
+    const saveDraft = () => {
+      clearTimeout(draftTimer);
+      draftTimer = setTimeout(() => {
+        if (!document.body.contains(textEl)) return;
+        store.saveDraft({
+          title: $('#article-title').value,
+          source: $('#article-source').value,
+          text: textEl.value,
+          count: Number($('#q-count').value),
+          difficulty: $('#q-diff').value,
+          types: Array.from(app.querySelectorAll('#q-types input:checked')).map((i) => i.value),
+          method: (app.querySelector('input[name=method]:checked') || {}).value,
+        });
+      }, 300);
+    };
+    app.addEventListener('input', saveDraft);
+    app.addEventListener('change', saveDraft);
 
     /* ----- file upload ----- */
     const fileInput = $('#article-file');
@@ -345,6 +398,11 @@
       app.querySelector('input[name=method][value=ai]').checked = true;
       syncMethod();
     });
+    $('#ai-speed').addEventListener('change', () => {
+      const st = store.getSettings();
+      st.speed = $('#ai-speed').value;
+      store.saveSettings(st);
+    });
     $('#ai-key').addEventListener('input', () => {
       const st = store.getSettings();
       st.keys[$('#ai-provider').value] = $('#ai-key').value.trim();
@@ -412,6 +470,7 @@
           ? await A2I.generateOffline(input.article, input.opts, onProgress, generating.signal)
           : await A2I.generateTest(input.article, input.opts, s, onProgress, generating.signal);
         store.saveTest(test);
+        store.clearDraft();
         location.hash = '#/test/' + encodeURIComponent(test.id);
       } catch (e) {
         showError(e.name === 'AbortError' ? 'Cancelled.' : (e.message || String(e)));
@@ -450,6 +509,7 @@
           source: $('#article-source').value.trim(),
         });
         store.saveTest(test);
+        store.clearDraft();
         location.hash = '#/test/' + encodeURIComponent(test.id);
       } catch (e) {
         showError('Could not read that reply: ' + e.message + (A2I.splitParagraphs(textEl.value).length ? '' : '\nTip: keep the article text above so the passage can be shown.'));
@@ -481,6 +541,7 @@
       tab: 'questions',
       showVocab: true,
       timer: null,
+      startedAt: Date.now(),
     };
 
     app.innerHTML = `
@@ -774,6 +835,19 @@
       cur.progress.submitted = true;
       cur.progress.lastScore = { correct: c, total, band: bandFor(c, total).toFixed(1), at: Date.now() };
       saveProgress();
+      // Remember the attempt for the dashboard.
+      const byType = {};
+      test.questionGroups.forEach((g) => g.questions.forEach((q) => {
+        const t = byType[g.type] || (byType[g.type] = [0, 0]);
+        if (isCorrect(q, cur.progress.answers[q.number])) t[0]++;
+        t[1]++;
+      }));
+      const seconds = Math.round((Date.now() - cur.startedAt) / 1000);
+      const limit = store.getSettings().timerMinutes;
+      store.addAttempt({
+        testId: test.id, title: test.title, at: Date.now(), correct: c, total,
+        band: bandFor(c, total), byType, seconds, overTime: !!limit && seconds > limit * 60 * 1.05,
+      });
       stopTimer();
       renderQuestions(body);
       document.getElementById('side').scrollTop = 0;
@@ -788,6 +862,7 @@
       cur.progress.submitted = false;
       cur.progress.answers = {};
       cur.evidence = null;
+      cur.startedAt = Date.now();
       saveProgress();
       renderPassage();
       renderQuestions(body);
@@ -861,6 +936,7 @@
       <div class="row" style="margin-bottom:8px">
         <label class="chip"><input type="checkbox" id="hide-defs"> Quiz me (hide definitions — click to reveal)</label>
         ${cur.progress.highlights.length ? '<button class="btn small" id="add-hl">+ Add my highlighted words</button>' : ''}
+        <button class="btn small" id="add-all-cards">+ Add all to flashcards</button>
         <button class="btn small ghost" id="print-dict">🖨 Print</button>
       </div>
       <div id="gloss-list">${vocab.length
@@ -868,6 +944,17 @@
         : '<p class="muted">This test has no dictionary.</p>'}</div>`;
     bindGlossaryActions(body);
     body.querySelector('#hide-defs').addEventListener('change', (e) => body.querySelector('#gloss-list').classList.toggle('hide-defs', e.target.checked));
+    body.querySelector('#add-all-cards').addEventListener('click', () => {
+      let n = 0;
+      cur.test.vocabulary.forEach((v, i) => {
+        const hit = cur.vocabHits.map((h, p) => [p, h.find((x) => x.v === i)]).find(([, h]) => h);
+        if (store.addWord({
+          word: v.word, partOfSpeech: v.partOfSpeech, definition: v.definition, example: v.example,
+          synonyms: v.synonyms, level: v.level, context: hit ? contextFor(hit[0], hit[1].start, hit[1].end) : '', testTitle: cur.test.title,
+        })) n++;
+      });
+      A2I.toast(n ? `Added ${n} word${n === 1 ? '' : 's'} to your flashcards` : 'All these words are already in your flashcards');
+    });
     body.querySelector('#print-dict').addEventListener('click', () => A2I.printTest(cur.test, cur.progress, 'dictionary', isCorrect));
     const addHl = body.querySelector('#add-hl');
     if (addHl) addHl.addEventListener('click', async () => {
@@ -1234,6 +1321,13 @@
     dlg.showModal();
   }
   document.getElementById('open-settings').addEventListener('click', openSettings);
+  document.getElementById('logout').addEventListener('click', () => {
+    if (!confirm('Log out? Your data stays saved in this browser.')) return;
+    A2I.auth.logout();
+    newMethod = null;
+    location.hash = '#/';
+    route();
+  });
   document.addEventListener('click', (e) => {
     if (e.target.closest('[data-open-settings]')) { e.preventDefault(); openSettings(); }
   });
@@ -1243,7 +1337,11 @@
     draft.provider = provSel.value;
     draft.timerMinutes = Math.max(0, Number(document.getElementById('set-timer').value) || 0);
     store.saveSettings(draft);
-    if (draft.keys[draft.provider]) newMethod = 'ai';
+    if (draft.keys[draft.provider]) {
+      newMethod = 'ai';
+      const d = store.getDraft();
+      if (d) { d.method = 'ai'; store.saveDraft(d); }
+    }
     A2I.toast('Settings saved');
     if (!cur) route();
   });

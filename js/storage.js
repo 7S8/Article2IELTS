@@ -1,4 +1,5 @@
-/* Persistence (localStorage) and test-data helpers. */
+/* Persistence (localStorage) and test-data helpers.
+   Each account's data is stored under its own keys ("…@<userId>"). */
 (function () {
   const A2I = (window.A2I = window.A2I || {});
 
@@ -6,8 +7,12 @@
     tests: 'a2i.tests.v1',
     words: 'a2i.words.v1',
     settings: 'a2i.settings.v1',
-    progress: 'a2i.progress.v1', // answers/highlights for bundled tests
+    progress: 'a2i.progress.v1', // answers/highlights for every test
+    attempts: 'a2i.attempts.v1', // finished tests, for the dashboard
+    draft: 'a2i.draft.v1', // unfinished New test form
   };
+  const ACCOUNTS = 'a2i.accounts.v1';
+  const SESSION = 'a2i.session.v1';
 
   function read(key, fallback) {
     try {
@@ -28,14 +33,105 @@
     }
   }
 
+  /* ---------- accounts (stored in this browser only) ---------- */
+
+  let userId = null;
+  (function restoreSession() {
+    const s = read(SESSION, null);
+    if (s && read(ACCOUNTS, []).some((a) => a.id === s.userId)) userId = s.userId;
+  })();
+
+  const key = (name) => KEYS[name] + '@' + userId;
+
+  function toHex(buf) {
+    return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  async function hashPassword(password, salt) {
+    if (window.crypto && crypto.subtle) {
+      const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']);
+      const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt: new TextEncoder().encode(salt), iterations: 150000, hash: 'SHA-256' }, base, 256);
+      return 'pbkdf2:' + toHex(bits);
+    }
+    // Very old browsers: a plain (weak) hash so the password is at least not stored as text.
+    let h = 2166136261;
+    const t = salt + password;
+    for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return 'fnv:' + (h >>> 0).toString(16);
+  }
+
+  const normEmail = (e) => String(e || '').trim().toLowerCase();
+
+  A2I.auth = {
+    user() {
+      return userId ? read(ACCOUNTS, []).find((a) => a.id === userId) || null : null;
+    },
+    hasAccounts() {
+      return read(ACCOUNTS, []).length > 0;
+    },
+    async register({ name, email, password, level, target }) {
+      email = normEmail(email);
+      name = String(name || '').trim();
+      if (!name) throw new Error('Please enter your name.');
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error('Please enter a valid email address.');
+      if (String(password || '').length < 6) throw new Error('The password must be at least 6 characters.');
+      const accounts = read(ACCOUNTS, []);
+      if (accounts.some((a) => a.email === email)) throw new Error('An account with this email already exists here. Please log in.');
+      const salt = A2I.uid() + Math.random().toString(36).slice(2);
+      const account = {
+        id: 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+        name, email, salt,
+        hash: await hashPassword(password, salt),
+        level: level || '', target: target || '',
+        created: Date.now(),
+      };
+      const first = accounts.length === 0;
+      accounts.push(account);
+      write(ACCOUNTS, accounts);
+      userId = account.id;
+      write(SESSION, { userId });
+      // The first account takes over anything saved before accounts existed.
+      if (first) {
+        Object.values(KEYS).forEach((k) => {
+          const old = localStorage.getItem(k);
+          if (old != null) {
+            try { localStorage.setItem(k + '@' + userId, old); localStorage.removeItem(k); } catch (e) { /* storage full */ }
+          }
+        });
+      }
+      return account;
+    },
+    async login(email, password) {
+      const account = read(ACCOUNTS, []).find((a) => a.email === normEmail(email));
+      if (!account || (await hashPassword(password, account.salt)) !== account.hash) {
+        throw new Error('Wrong email or password.');
+      }
+      userId = account.id;
+      write(SESSION, { userId });
+      return account;
+    },
+    logout() {
+      userId = null;
+      try { localStorage.removeItem(SESSION); } catch (e) { /* ignore */ }
+    },
+    updateProfile(patch) {
+      const accounts = read(ACCOUNTS, []);
+      const a = accounts.find((x) => x.id === userId);
+      if (!a) return;
+      Object.assign(a, patch);
+      write(ACCOUNTS, accounts);
+    },
+  };
+
   A2I.store = {
     getSettings() {
-      const s = read(KEYS.settings, {});
+      const s = read(key('settings'), {});
       const out = {
         provider: s.provider || 'claude',
         keys: Object.assign({}, s.keys),
         models: Object.assign({ claude: 'claude-opus-5-5' }, s.models),
         timerMinutes: s.timerMinutes == null ? 20 : s.timerMinutes,
+        speed: s.speed === 'best' ? 'best' : 'fast',
       };
       // Settings saved by the first version of the app.
       if (s.apiKey && !out.keys.claude) out.keys.claude = s.apiKey;
@@ -43,13 +139,13 @@
       return out;
     },
     saveSettings(s) {
-      write(KEYS.settings, s);
+      write(key('settings'), s);
     },
 
     /* Tests created in the browser live in localStorage; bundled tests come
        from tests/*.js. Progress for both is stored separately per test id. */
     listTests() {
-      const own = read(KEYS.tests, []);
+      const own = read(key('tests'), []);
       const bundled = [];
       (window.A2I_BUNDLED || []).forEach((t) => {
         try {
@@ -65,23 +161,23 @@
       return this.listTests().find((t) => t.id === id) || null;
     },
     saveTest(test) {
-      const own = read(KEYS.tests, []);
+      const own = read(key('tests'), []);
       const i = own.findIndex((t) => t.id === test.id);
       const copy = Object.assign({}, test);
       delete copy.bundled;
       if (i >= 0) own[i] = copy;
       else own.unshift(copy);
-      return write(KEYS.tests, own);
+      return write(key('tests'), own);
     },
     deleteTest(id) {
-      write(KEYS.tests, read(KEYS.tests, []).filter((t) => t.id !== id));
-      const p = read(KEYS.progress, {});
+      write(key('tests'), read(key('tests'), []).filter((t) => t.id !== id));
+      const p = read(key('progress'), {});
       delete p[id];
-      write(KEYS.progress, p);
+      write(key('progress'), p);
     },
 
     getProgress(id) {
-      const p = read(KEYS.progress, {})[id] || {};
+      const p = read(key('progress'), {})[id] || {};
       return {
         answers: p.answers || {},
         highlights: p.highlights || [],
@@ -90,29 +186,54 @@
       };
     },
     saveProgress(id, progress) {
-      const p = read(KEYS.progress, {});
+      const p = read(key('progress'), {});
       p[id] = progress;
-      write(KEYS.progress, p);
+      write(key('progress'), p);
     },
 
     getWords() {
-      return read(KEYS.words, []);
+      return read(key('words'), []);
     },
     addWord(entry) {
-      const words = read(KEYS.words, []);
-      const key = entry.word.toLowerCase();
-      const existing = words.find((w) => w.word.toLowerCase() === key);
+      const words = read(key('words'), []);
+      const lower = entry.word.toLowerCase();
+      const existing = words.find((w) => w.word.toLowerCase() === lower);
       if (existing) {
         if (!existing.definition && entry.definition) existing.definition = entry.definition;
-        write(KEYS.words, words);
+        write(key('words'), words);
         return false;
       }
       words.unshift(Object.assign({ added: Date.now() }, entry));
-      write(KEYS.words, words);
+      write(key('words'), words);
       return true;
     },
+    updateWord(word, patch) {
+      const words = read(key('words'), []);
+      const w = words.find((x) => x.word === word);
+      if (w) { Object.assign(w, patch); write(key('words'), words); }
+    },
     removeWord(word) {
-      write(KEYS.words, read(KEYS.words, []).filter((w) => w.word !== word));
+      write(key('words'), read(key('words'), []).filter((w) => w.word !== word));
+    },
+
+    /* Finished tests, newest last: {testId, title, at, correct, total, band, byType: {type: [correct, total]}, seconds, overTime} */
+    getAttempts() {
+      return read(key('attempts'), []);
+    },
+    addAttempt(a) {
+      const list = read(key('attempts'), []);
+      list.push(a);
+      write(key('attempts'), list.slice(-500));
+    },
+
+    getDraft() {
+      return read(key('draft'), null);
+    },
+    saveDraft(d) {
+      write(key('draft'), d);
+    },
+    clearDraft() {
+      try { localStorage.removeItem(key('draft')); } catch (e) { /* ignore */ }
     },
 
     /* One file with everything (tests, answers, highlights, words) — without API keys. */
@@ -121,30 +242,36 @@
         app: 'Article2IELTS',
         version: 1,
         exported: new Date().toISOString(),
-        tests: read(KEYS.tests, []),
-        progress: read(KEYS.progress, {}),
-        words: read(KEYS.words, []),
+        tests: read(key('tests'), []),
+        progress: read(key('progress'), {}),
+        words: read(key('words'), []),
+        attempts: read(key('attempts'), []),
       };
     },
     /* Merge a backup into what is already saved. Returns counts of new items. */
     importAll(data) {
       if (!data || data.app !== 'Article2IELTS') throw new Error('This is not an Article2IELTS backup file.');
-      const tests = read(KEYS.tests, []);
+      const tests = read(key('tests'), []);
       const have = new Set(tests.map((t) => t.id));
       let newTests = 0;
       (data.tests || []).forEach((t) => {
         if (!have.has(t.id)) { tests.push(t); have.add(t.id); newTests++; }
       });
-      const progress = Object.assign({}, data.progress, read(KEYS.progress, {}));
-      const words = read(KEYS.words, []);
+      const progress = Object.assign({}, data.progress, read(key('progress'), {}));
+      const words = read(key('words'), []);
       const haveWords = new Set(words.map((w) => w.word.toLowerCase()));
       let newWords = 0;
       (data.words || []).forEach((w) => {
         if (w && w.word && !haveWords.has(w.word.toLowerCase())) { words.push(w); haveWords.add(w.word.toLowerCase()); newWords++; }
       });
-      write(KEYS.tests, tests);
-      write(KEYS.progress, progress);
-      write(KEYS.words, words);
+      write(key('tests'), tests);
+      write(key('progress'), progress);
+      write(key('words'), words);
+      const attempts = read(key('attempts'), []);
+      const seen = new Set(attempts.map((a) => a.testId + ':' + a.at));
+      (data.attempts || []).forEach((a) => { if (a && !seen.has(a.testId + ':' + a.at)) attempts.push(a); });
+      attempts.sort((x, y) => x.at - y.at);
+      write(key('attempts'), attempts);
       return { newTests, newWords };
     },
   };
