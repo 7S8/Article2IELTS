@@ -170,7 +170,6 @@
 
   function renderNew() {
     const settings = store.getSettings();
-    const provider = A2I.PROVIDERS[settings.provider];
     const hasKey = !!settings.keys[settings.provider];
     if (!newMethod) newMethod = hasKey ? 'ai' : 'basic';
     app.innerHTML = `
@@ -216,10 +215,19 @@
 
           <h2 style="margin-top:20px">3. Make the test</h2>
           <div class="methods" role="radiogroup">
-            <label class="method"><input type="radio" name="method" value="ai" ${newMethod === 'ai' ? 'checked' : ''}>
-              <span><b>AI questions</b> <span class="badge">${esc(provider.label.split(' —')[0])}</span><br>
-              <span class="muted small">Real IELTS-quality questions. Needs an API key — Gemini, Groq and OpenRouter keys are free.
-              ${hasKey ? '' : '<a href="#" data-open-settings>Add a key</a>'}</span></span></label>
+            <div class="method method-ai">
+              <label class="method-head"><input type="radio" name="method" value="ai" ${newMethod === 'ai' ? 'checked' : ''}>
+                <span><b>AI questions</b><br>
+                <span class="muted small">Real IELTS-quality questions. Needs an API key — Gemini, Groq and OpenRouter keys are free.</span></span></label>
+              <div class="ai-config">
+                <label>AI service
+                  <select id="ai-provider">${Object.entries(A2I.PROVIDERS).map(([id, p]) => `<option value="${id}" ${id === settings.provider ? 'selected' : ''}>${esc(p.label)}</option>`).join('')}</select>
+                </label>
+                <label>API key <a id="ai-key-link" class="small" target="_blank" rel="noopener" href="#" style="font-weight:400;float:right"></a>
+                  <input type="password" id="ai-key" autocomplete="off" placeholder="Paste your key">
+                </label>
+              </div>
+            </div>
             <label class="method"><input type="radio" name="method" value="basic" ${newMethod === 'basic' ? 'checked' : ''}>
               <span><b>Basic questions — free, no key</b><br>
               <span class="muted small">Made instantly in your browser without AI: True/False, gap fills, word bank, matching paragraphs, vocabulary. Simpler than the real test.</span></span></label>
@@ -320,6 +328,31 @@
     }
     document.addEventListener('paste', onPaste);
 
+    /* ----- AI service and key, chosen right here ----- */
+    function showAiProvider() {
+      const st = store.getSettings();
+      const id = $('#ai-provider').value;
+      $('#ai-key').value = st.keys[id] || '';
+      $('#ai-key').placeholder = 'Paste your ' + A2I.PROVIDERS[id].label.split(' —')[0] + ' key';
+      $('#ai-key-link').href = A2I.PROVIDERS[id].keyUrl;
+      $('#ai-key-link').textContent = id === 'claude' ? 'Get a key (paid)' : 'Get a free key';
+    }
+    $('#ai-provider').addEventListener('change', () => {
+      const st = store.getSettings();
+      st.provider = $('#ai-provider').value;
+      store.saveSettings(st);
+      showAiProvider();
+      app.querySelector('input[name=method][value=ai]').checked = true;
+      syncMethod();
+    });
+    $('#ai-key').addEventListener('input', () => {
+      const st = store.getSettings();
+      st.keys[$('#ai-provider').value] = $('#ai-key').value.trim();
+      store.saveSettings(st);
+    });
+    $('#ai-key').addEventListener('focus', () => { app.querySelector('input[name=method][value=ai]').checked = true; syncMethod(); });
+    showAiProvider();
+
     /* ----- method choice ----- */
     function syncMethod() {
       newMethod = app.querySelector('input[name=method]:checked').value;
@@ -327,6 +360,7 @@
       $('#m-chat').hidden = newMethod !== 'chat';
       $('#gen-btn').textContent = newMethod === 'basic' ? 'Make basic test' : 'Generate IELTS test';
       $('#diff-label').hidden = newMethod === 'basic';
+      app.querySelector('.ai-config').hidden = newMethod !== 'ai';
       // Basic mode can only make some question types.
       app.querySelectorAll('#q-types .chip').forEach((c) => {
         c.style.opacity = newMethod === 'basic' && !A2I.OFFLINE_TYPES.includes(c.dataset.type) ? 0.4 : '';
@@ -364,7 +398,7 @@
       try { input = collect(); } catch (e) { return showError(e.message); }
       const s = store.getSettings();
       if (newMethod === 'ai' && !s.keys[s.provider]) {
-        showError('Add an API key in Settings first (Gemini, Groq and OpenRouter keys are free), or choose “Basic questions” or “Claude chat”, which need no key.');
+        showError('Paste an API key above first (Gemini, Groq and OpenRouter keys are free — use “Get a free key”), or choose “Basic questions” or “Claude chat”, which need no key.');
         return;
       }
       generating = new AbortController();

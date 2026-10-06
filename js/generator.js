@@ -316,6 +316,9 @@ ${labelled}
     if (e instanceof sdk.PermissionDeniedError) return new Error('This API key does not have access to that model. Try another model in Settings.');
     if (e instanceof sdk.NotFoundError) return new Error('Model not found. Choose another model in Settings.');
     if (e instanceof sdk.RateLimitError) return new Error('Rate limit or credit limit reached. Wait a moment, or check your billing at console.anthropic.com.');
+    if (e instanceof sdk.BadRequestError && /credit balance/i.test(e.message)) {
+      return new Error('Your Claude account has no credit. Add credit at console.anthropic.com → Plans & Billing, or choose a free AI service above (Gemini, Groq or OpenRouter), or use “Basic questions” or “Claude chat”, which need no key.');
+    }
     if (e instanceof sdk.BadRequestError) return new Error('The request was rejected: ' + e.message);
     if (e instanceof sdk.APIConnectionError) return new Error('Could not reach the Claude API. Check your connection and try again.');
     if (e instanceof sdk.APIError) return new Error('Claude API error (' + (e.status || '?') + '): ' + e.message);

@@ -154,6 +154,11 @@ kbd { font: 600 .8em ui-monospace, monospace; padding: 1px 5px; border: 1px soli
 }
 .method:has(input:checked) { border-color: var(--accent); background: var(--surface-2); }
 .method input { margin-top: 5px; }
+.method-ai { display: block; }
+.method-head { display: flex; gap: 10px; align-items: flex-start; font-weight: 400; margin: 0; cursor: pointer; }
+.ai-config { margin: 4px 0 0 26px; }
+.ai-config label { margin-top: 8px; font-size: .9rem; }
+.ai-config input { margin-top: 4px; }
 details.alt summary { cursor: pointer; font-weight: 600; }
 .error { color: var(--bad); background: var(--bad-bg); padding: 8px 12px; border-radius: 8px; margin-top: 12px; white-space: pre-wrap; }
 
