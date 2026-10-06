@@ -138,6 +138,21 @@ label > input, label > select, label > textarea { margin-top: 4px; font-weight: 
 .progress .bar > i { display: block; height: 100%; width: 30%; background: var(--accent); animation: slide 1.2s ease-in-out infinite; }
 @keyframes slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(350%); } }
 details.alt { margin-top: 16px; }
+.dropzone {
+  border: 2px dashed var(--border); border-radius: var(--radius); padding: 22px 16px; text-align: center;
+  cursor: pointer; background: var(--surface-2); transition: border-color .15s, background .15s;
+}
+.dropzone:hover, .dropzone:focus-visible, .dropzone.over { border-color: var(--accent); outline: none; }
+.dropzone .dz-icon { font-size: 1.8rem; line-height: 1; margin-bottom: 4px; }
+.or { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: .85rem; margin: 16px 0 0; }
+.or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+.methods { display: grid; gap: 8px; margin-bottom: 14px; }
+.method {
+  display: flex; gap: 10px; align-items: flex-start; font-weight: 400; margin: 0;
+  border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; cursor: pointer;
+}
+.method:has(input:checked) { border-color: var(--accent); background: var(--surface-2); }
+.method input { margin-top: 5px; }
 details.alt summary { cursor: pointer; font-weight: 600; }
 .error { color: var(--bad); background: var(--bad-bg); padding: 8px 12px; border-radius: 8px; margin-top: 12px; white-space: pre-wrap; }
 

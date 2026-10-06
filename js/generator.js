@@ -134,7 +134,7 @@ ${labelled}
 </article>`;
   }
 
-  A2I.buildChatPrompt = function (article, opts) {
+  function jsonInstructions() {
     const skeleton = {
       title: 'string',
       vocabulary: [{ word: 'string', inText: 'string', partOfSpeech: 'string', definition: 'string', example: 'string', synonyms: ['string'], level: 'B1|B2|C1|C2' }],
@@ -146,9 +146,19 @@ ${labelled}
         questions: [{ number: 1, text: 'string', choices: [{ key: 'A', text: 'string' }], answer: 'string', acceptedAnswers: ['string'], explanation: 'string', evidence: 'verbatim quote' }],
       }],
     };
-    return SYSTEM_PROMPT + '\n\n' + buildUserPrompt(article, opts) +
-      '\n\nReply with ONLY one JSON object (no commentary, no code fences) in exactly this shape:\n' +
-      JSON.stringify(skeleton, null, 2);
+    return 'Reply with ONLY one JSON object (no commentary, no code fences) in exactly this shape:\n' + JSON.stringify(skeleton, null, 2);
+  }
+
+  A2I.buildChatPrompt = function (article, opts) {
+    return SYSTEM_PROMPT + '\n\n' + buildUserPrompt(article, opts) + '\n\n' + jsonInstructions();
+  };
+
+  /* AI services the app can use. "free" ones have a no-cost tier but still need a (free) key. */
+  A2I.PROVIDERS = {
+    claude: { label: 'Claude (Anthropic) — best questions, paid', keyUrl: 'https://console.anthropic.com/settings/keys' },
+    gemini: { label: 'Google Gemini — free key', keyUrl: 'https://aistudio.google.com/apikey', model: 'gemini-2.5-flash' },
+    groq: { label: 'Groq — free key', keyUrl: 'https://console.groq.com/keys', base: 'https://api.groq.com/openai/v1', model: 'llama-3.3-70b-versatile' },
+    openrouter: { label: 'OpenRouter — free models, free key', keyUrl: 'https://openrouter.ai/keys', base: 'https://openrouter.ai/api/v1', model: 'meta-llama/llama-3.3-70b-instruct:free' },
   };
 
   let sdkPromise = null;
@@ -170,16 +180,27 @@ ${labelled}
     return sdkPromise;
   }
 
-  /* Generate a test. onProgress(text) receives short status updates. */
+  /* Generate a test with the AI service chosen in Settings.
+     onProgress(text) receives short status updates. */
   A2I.generateTest = async function (article, opts, settings, onProgress, signal) {
+    const provider = settings.provider || 'claude';
+    const key = (settings.keys || {})[provider];
+    const model = (settings.models || {})[provider] || (A2I.PROVIDERS[provider] || {}).model;
+    if (!key) throw new Error('Add your ' + A2I.PROVIDERS[provider].label.split(' —')[0] + ' API key in Settings first.');
+    if (provider === 'claude') return generateWithClaude(article, opts, key, model || 'claude-opus-5-5', onProgress, signal);
+    if (provider === 'gemini') return generateWithGemini(article, opts, key, model, onProgress, signal);
+    return generateWithOpenAICompatible(article, opts, A2I.PROVIDERS[provider].base, key, model, onProgress, signal);
+  };
+
+  async function generateWithClaude(article, opts, apiKey, model, onProgress, signal) {
     const sdk = await loadSdk();
     const Anthropic = sdk.default;
-    const client = new Anthropic({ apiKey: settings.apiKey, dangerouslyAllowBrowser: true });
+    const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
 
     onProgress('Claude is reading the article and planning questions…');
     let chars = 0;
     const stream = client.beta.messages.stream({
-      model: settings.model,
+      model,
       max_tokens: 32000,
       betas: ['server-side-fallback-2026-07-01'],
       fallbacks: 'default',
@@ -217,7 +238,77 @@ ${labelled}
       throw new Error('Claude returned data that could not be read as JSON. Please try again.');
     }
     return A2I.normalizeTest(data, { paragraphs: article.paragraphs, title: article.title, source: article.source });
-  };
+  }
+
+  function finish(text, article, who) {
+    try {
+      return A2I.normalizeTest(text, { paragraphs: article.paragraphs, title: article.title, source: article.source });
+    } catch (e) {
+      throw new Error(who + ' returned a test that could not be read (' + e.message + '). Please try again, or choose fewer questions.');
+    }
+  }
+
+  async function postJSON(url, headers, body, signal, who) {
+    let res;
+    try {
+      res = await fetch(url, { method: 'POST', headers: Object.assign({ 'content-type': 'application/json' }, headers), body: JSON.stringify(body), signal });
+    } catch (e) {
+      if (signal && signal.aborted) throw new Error('Generation cancelled.');
+      throw new Error('Could not reach ' + who + '. Check your connection and try again.');
+    }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const msg = (data.error && (data.error.message || data.error)) || res.statusText;
+      if (res.status === 401 || res.status === 403) throw new Error(who + ' rejected your API key: ' + msg);
+      if (res.status === 429) throw new Error(who + ': free limit reached for now. Wait a minute and try again. (' + msg + ')');
+      if (res.status === 404) throw new Error(who + ': model not found. Change the model name in Settings. (' + msg + ')');
+      throw new Error(who + ' error ' + res.status + ': ' + msg);
+    }
+    return data;
+  }
+
+  async function generateWithGemini(article, opts, key, model, onProgress, signal) {
+    onProgress('Gemini is writing the test… (this can take a minute)');
+    const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':generateContent?key=' + encodeURIComponent(key);
+    const data = await postJSON(url, {}, {
+      systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+      contents: [{ role: 'user', parts: [{ text: buildUserPrompt(article, opts) + '\n\n' + jsonInstructions() }] }],
+      generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 32768 },
+    }, signal, 'Gemini');
+    const cand = (data.candidates || [])[0];
+    if (!cand) throw new Error('Gemini did not return a test' + (data.promptFeedback && data.promptFeedback.blockReason ? ' (blocked: ' + data.promptFeedback.blockReason + ')' : '') + '.');
+    if (cand.finishReason === 'MAX_TOKENS') throw new Error('Gemini’s answer was cut off. Try a shorter article or fewer questions.');
+    const text = ((cand.content && cand.content.parts) || []).filter((p) => !p.thought).map((p) => p.text || '').join('');
+    return finish(text, article, 'Gemini');
+  }
+
+  async function generateWithOpenAICompatible(article, opts, base, key, model, onProgress, signal) {
+    const who = /groq/.test(base) ? 'Groq' : /openrouter/.test(base) ? 'OpenRouter' : 'The AI service';
+    onProgress(who + ' is writing the test… (this can take a minute)');
+    const body = {
+      model,
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: buildUserPrompt(article, opts) + '\n\n' + jsonInstructions() },
+      ],
+      response_format: { type: 'json_object' },
+      max_tokens: 16000,
+    };
+    const headers = { authorization: 'Bearer ' + key };
+    let data;
+    try {
+      data = await postJSON(base + '/chat/completions', headers, body, signal, who);
+    } catch (e) {
+      // Some free models do not support JSON mode; retry once without it.
+      if (!/error 400/.test(e.message)) throw e;
+      delete body.response_format;
+      data = await postJSON(base + '/chat/completions', headers, body, signal, who);
+    }
+    const choice = (data.choices || [])[0];
+    if (!choice) throw new Error(who + ' did not return a test.');
+    if (choice.finish_reason === 'length') throw new Error(who + '’s answer was cut off. Try a shorter article or fewer questions.');
+    return finish(choice.message.content || '', article, who);
+  }
 
   function friendlyError(sdk, e) {
     if (e instanceof sdk.APIUserAbortError) return new Error('Generation cancelled.');

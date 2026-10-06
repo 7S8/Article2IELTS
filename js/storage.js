@@ -28,11 +28,19 @@
     }
   }
 
-  const DEFAULT_SETTINGS = { apiKey: '', model: 'claude-opus-5-5', timerMinutes: 20 };
-
   A2I.store = {
     getSettings() {
-      return Object.assign({}, DEFAULT_SETTINGS, read(KEYS.settings, {}));
+      const s = read(KEYS.settings, {});
+      const out = {
+        provider: s.provider || 'claude',
+        keys: Object.assign({}, s.keys),
+        models: Object.assign({ claude: 'claude-opus-5-5' }, s.models),
+        timerMinutes: s.timerMinutes == null ? 20 : s.timerMinutes,
+      };
+      // Settings saved by the first version of the app.
+      if (s.apiKey && !out.keys.claude) out.keys.claude = s.apiKey;
+      if (s.model && !(s.models && s.models.claude)) out.models.claude = s.model;
+      return out;
     },
     saveSettings(s) {
       write(KEYS.settings, s);
@@ -105,6 +113,39 @@
     },
     removeWord(word) {
       write(KEYS.words, read(KEYS.words, []).filter((w) => w.word !== word));
+    },
+
+    /* One file with everything (tests, answers, highlights, words) — without API keys. */
+    exportAll() {
+      return {
+        app: 'Article2IELTS',
+        version: 1,
+        exported: new Date().toISOString(),
+        tests: read(KEYS.tests, []),
+        progress: read(KEYS.progress, {}),
+        words: read(KEYS.words, []),
+      };
+    },
+    /* Merge a backup into what is already saved. Returns counts of new items. */
+    importAll(data) {
+      if (!data || data.app !== 'Article2IELTS') throw new Error('This is not an Article2IELTS backup file.');
+      const tests = read(KEYS.tests, []);
+      const have = new Set(tests.map((t) => t.id));
+      let newTests = 0;
+      (data.tests || []).forEach((t) => {
+        if (!have.has(t.id)) { tests.push(t); have.add(t.id); newTests++; }
+      });
+      const progress = Object.assign({}, data.progress, read(KEYS.progress, {}));
+      const words = read(KEYS.words, []);
+      const haveWords = new Set(words.map((w) => w.word.toLowerCase()));
+      let newWords = 0;
+      (data.words || []).forEach((w) => {
+        if (w && w.word && !haveWords.has(w.word.toLowerCase())) { words.push(w); haveWords.add(w.word.toLowerCase()); newWords++; }
+      });
+      write(KEYS.tests, tests);
+      write(KEYS.progress, progress);
+      write(KEYS.words, words);
+      return { newTests, newWords };
     },
   };
 
@@ -233,6 +274,7 @@
       title: str(raw.title) || extra.title || 'Untitled passage',
       source: str(raw.source) || extra.source || '',
       created: raw.created || Date.now(),
+      madeBy: str(raw.madeBy),
       paragraphs,
       vocabulary,
       questionGroups: groups,

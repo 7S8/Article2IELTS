@@ -39,18 +39,24 @@
   <dialog id="settings-dialog">
     <form method="dialog" class="settings">
       <h2>Settings</h2>
-      <p class="muted">To generate tests automatically, paste a Claude API key from
-        <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>.
-        It is stored only in this browser (localStorage) and sent only to api.anthropic.com.
-        No key? You can still use the “Copy prompt” option on the New test page.</p>
-      <label>Claude API key
-        <input type="password" id="set-key" autocomplete="off" placeholder="sk-ant-...">
+      <p class="muted small">An API key lets the site write real IELTS-quality questions with AI.
+        <b>Gemini, Groq and OpenRouter give keys for free.</b> Your keys are stored only in this browser and are sent only to the service you choose.
+        No key? Use “Basic questions” or “Claude chat” on the New test page — both are free.</p>
+      <label>AI service
+        <select id="set-provider"></select>
       </label>
-      <label>Model
+      <label>API key <a id="set-key-link" class="small" target="_blank" rel="noopener" href="#" style="font-weight:400;float:right">Get a key</a>
+        <input type="password" id="set-key" autocomplete="off" placeholder="Paste your key">
+      </label>
+      <label id="set-model-claude">Model
         <select id="set-model">
           <option value="claude-opus-5-5">Claude Opus 5.5 — best questions</option>
           <option value="claude-sonnet-5-5">Claude Sonnet 5.5 — faster, cheaper</option>
         </select>
+      </label>
+      <label id="set-model-other">Model name
+        <input type="text" id="set-model-name" autocomplete="off" spellcheck="false">
+        <span class="muted small" style="font-weight:400">Free models change from time to time. If you get “model not found”, check the service’s website for a current model name.</span>
       </label>
       <label>Reading timer (minutes, 0 = off)
         <input type="number" id="set-timer" min="0" max="120" step="1">
@@ -70,6 +76,8 @@
   <script src="js/storage.js"></script>
   <script src="js/passage.js"></script>
   <script src="js/generator.js"></script>
+  <script src="js/offline.js"></script>
+  <script src="js/fileimport.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

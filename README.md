@@ -16,12 +16,19 @@ Turn any newspaper or magazine article (The Atlantic, The Guardian, The Economis
 ## How to use
 
 1. Open `index.html` in a browser, or publish the repo with GitHub Pages (Settings → Pages → Deploy from branch).
-2. Click **New test**, paste the article, choose the question types, then:
-   - **With a Claude API key** (add it in Settings): click **Generate IELTS test**. The key is stored only in your
-     browser and sent only to `api.anthropic.com`.
-   - **Without a key**: open “No API key? Use Claude chat instead”, click **Copy prompt**, paste it into claude.ai,
-     then paste Claude’s JSON reply back into the app.
-3. Tests can be exported and imported as `.json` files.
+2. Click **New test**, then **upload a file** (PDF, Word .docx, a web page saved with “Save page as…”, .txt,
+   or a photo/screenshot of the article) or paste the text.
+3. Choose the question types and how to make the test:
+   - **AI questions**: needs an API key, added in Settings. **Google Gemini, Groq and OpenRouter keys are free**;
+     Claude gives the best questions but is paid. Keys are stored only in your browser and sent only to the service you choose.
+   - **Basic questions — free, no key**: made instantly in your browser without AI (True/False, gap fills,
+     word-bank summary, matching paragraphs, vocabulary). Simpler than the real test. Dictionary definitions come from
+     the free [dictionaryapi.dev](https://dictionaryapi.dev).
+   - **Claude chat — free, no key**: click **Copy prompt**, paste it into claude.ai (a free account works), and paste
+     Claude’s answer back.
+4. Everything is saved in your browser automatically. Use **Save backup** on the My tests page to download all your
+   tests, answers, highlights and words to one file, and **Open backup** to restore them (also on another device).
+   Single tests can be exported and imported as `.json` files.
 
 A sample test (“Small Forests, Big Claims”) is included so you can try the app straight away.
 
@@ -37,8 +44,10 @@ To add a bundled test, create `tests/<name>.js` in the same format as `tests/sam
 | --- | --- |
 | `index.html` | Page shell |
 | `css/style.css` | Styles (light and dark mode) |
-| `js/storage.js` | Saving to the browser, splitting paragraphs, checking test JSON |
+| `js/storage.js` | Saving to the browser, backups, splitting paragraphs, checking test JSON |
 | `js/passage.js` | Showing the passage with dictionary words, highlights and answer locations |
-| `js/generator.js` | Prompt and JSON schema for Claude, and the API call |
+| `js/generator.js` | Prompt and JSON schema, and calls to Claude, Gemini, Groq and OpenRouter |
+| `js/offline.js` | Basic question maker that needs no AI or key |
+| `js/fileimport.js` | Reading articles from PDF, Word, HTML, text and image files |
 | `js/app.js` | Pages: test list, new test, test view, my words, settings |
 | `tests/` | Bundled tests |

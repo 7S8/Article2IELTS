@@ -97,7 +97,8 @@
           <p class="muted" style="margin:4px 0 0">Paste an article from The Atlantic, The Guardian, The Economist… and practise it as a real IELTS Academic Reading passage.</p>
         </div>
         <div class="row">
-          <label class="btn" style="margin:0;font-weight:400">Import .json<input type="file" accept=".json,application/json" id="import-file" hidden></label>
+          <button class="btn" id="backup">Save backup</button>
+          <label class="btn" style="margin:0;font-weight:400">Open backup / test file<input type="file" accept=".json,application/json" id="import-file" hidden></label>
           <a class="btn primary" href="#/new">+ New test from article</a>
         </div>
       </div>
@@ -112,6 +113,7 @@
             <div class="meta">${t.source ? esc(t.source) + ' · ' : ''}${words} words · ${n} questions</div>
             <div style="margin-bottom:10px">
               ${t.bundled ? '<span class="badge">sample</span>' : ''}
+              ${t.madeBy === 'basic' ? '<span class="badge">basic questions</span>' : ''}
               ${p.lastScore ? `<span class="badge score">last: ${p.lastScore.correct}/${p.lastScore.total} · band ≈ ${p.lastScore.band}</span>` : ''}
             </div>
             <div class="row">
@@ -139,31 +141,56 @@
       const file = e.target.files[0];
       if (!file) return;
       try {
-        const test = A2I.normalizeTest(await file.text());
-        if (store.getTest(test.id)) test.id = A2I.uid();
-        store.saveTest(test);
-        A2I.toast('Imported “' + test.title + '”');
+        const data = JSON.parse(await file.text());
+        if (data && data.app === 'Article2IELTS') {
+          const r = store.importAll(data);
+          A2I.toast(`Backup opened: ${r.newTests} new test${r.newTests === 1 ? '' : 's'}, ${r.newWords} new word${r.newWords === 1 ? '' : 's'}`);
+        } else {
+          const test = A2I.normalizeTest(data);
+          if (store.getTest(test.id)) test.id = A2I.uid();
+          store.saveTest(test);
+          A2I.toast('Imported “' + test.title + '”');
+        }
         renderLibrary();
       } catch (err) {
-        alert('Could not import that file: ' + err.message);
+        alert('Could not open that file: ' + err.message);
       }
+    });
+    app.querySelector('#backup').addEventListener('click', () => {
+      const day = new Date().toISOString().slice(0, 10);
+      download('article2ielts-backup-' + day + '.json', JSON.stringify(store.exportAll()));
+      A2I.toast('Backup saved — keep the file safe. Open it here (or on another device) to restore.');
     });
   }
 
   /* ---------- new test ---------- */
 
   let generating = null; // AbortController while a request runs
+  let newMethod = null; // remembered choice on the New test page
 
   function renderNew() {
     const settings = store.getSettings();
+    const provider = A2I.PROVIDERS[settings.provider];
+    const hasKey = !!settings.keys[settings.provider];
+    if (!newMethod) newMethod = hasKey ? 'ai' : 'basic';
     app.innerHTML = `
       <div class="new-grid">
         <div class="card">
-          <h2>1. Paste the article</h2>
+          <h2>1. Add the article</h2>
+          <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Upload an article file">
+            <input type="file" id="article-file" hidden
+              accept=".pdf,.docx,.txt,.md,.html,.htm,.rtf,image/*,application/pdf,text/plain,text/html">
+            <div class="dz-icon" aria-hidden="true">📄</div>
+            <div><b>Upload a file</b> or drag it here</div>
+            <div class="muted small">PDF · Word (.docx) · saved web page (.html) · text (.txt) · photo or screenshot</div>
+          </div>
+          <div class="progress" id="file-progress" hidden><span></span><div class="bar"><i></i></div></div>
+          <div class="error" id="file-error" hidden></div>
+          <div class="or"><span>or paste the text</span></div>
           <label>Headline <input type="text" id="article-title" placeholder="e.g. The Case for Boredom"></label>
           <label>Source (optional) <input type="text" id="article-source" placeholder="e.g. The Atlantic, March 2026"></label>
           <label>Article text
-            <textarea id="article-text" placeholder="Paste the full article text here. Keep the blank lines between paragraphs."></textarea>
+            <textarea id="article-text" placeholder="Paste the full article text here, or upload a file above. Keep the blank lines between paragraphs."></textarea>
           </label>
           <div class="muted small" id="article-stats">0 words</div>
         </div>
@@ -177,9 +204,9 @@
           <span class="muted small">A real IELTS passage has 13–14 questions.</span>
           <label>Question types</label>
           <div class="chips" id="q-types">
-            ${A2I.QUESTION_TYPES.map((t) => `<label class="chip"><input type="checkbox" value="${t.id}" ${t.on ? 'checked' : ''}>${esc(t.label)}</label>`).join('')}
+            ${A2I.QUESTION_TYPES.map((t) => `<label class="chip" data-type="${t.id}"><input type="checkbox" value="${t.id}" ${t.on ? 'checked' : ''}>${esc(t.label)}</label>`).join('')}
           </div>
-          <label>Difficulty
+          <label id="diff-label">Difficulty
             <select id="q-diff">
               <option value="band 5.5–6 (moderate)">Band 5.5–6</option>
               <option value="band 6.5–7 (standard IELTS)" selected>Band 6.5–7</option>
@@ -187,25 +214,37 @@
             </select>
           </label>
 
-          <h2 style="margin-top:20px">3. Create</h2>
-          ${settings.apiKey ? '' : '<p class="muted small">Add your Claude API key in <a href="#" data-open-settings>Settings</a> to generate tests here — or use the “No API key?” option below.</p>'}
-          <button class="btn primary" id="gen-btn" ${settings.apiKey ? '' : 'disabled'}>Generate IELTS test</button>
-          <button class="btn ghost" id="cancel-btn" hidden>Cancel</button>
-          <div class="progress" id="gen-progress" hidden><span></span><div class="bar"><i></i></div></div>
-          <div class="error" id="gen-error" hidden></div>
+          <h2 style="margin-top:20px">3. Make the test</h2>
+          <div class="methods" role="radiogroup">
+            <label class="method"><input type="radio" name="method" value="ai" ${newMethod === 'ai' ? 'checked' : ''}>
+              <span><b>AI questions</b> <span class="badge">${esc(provider.label.split(' —')[0])}</span><br>
+              <span class="muted small">Real IELTS-quality questions. Needs an API key — Gemini, Groq and OpenRouter keys are free.
+              ${hasKey ? '' : '<a href="#" data-open-settings>Add a key</a>'}</span></span></label>
+            <label class="method"><input type="radio" name="method" value="basic" ${newMethod === 'basic' ? 'checked' : ''}>
+              <span><b>Basic questions — free, no key</b><br>
+              <span class="muted small">Made instantly in your browser without AI: True/False, gap fills, word bank, matching paragraphs, vocabulary. Simpler than the real test.</span></span></label>
+            <label class="method"><input type="radio" name="method" value="chat" ${newMethod === 'chat' ? 'checked' : ''}>
+              <span><b>Claude chat — free, no key</b><br>
+              <span class="muted small">Copy a prompt into claude.ai (a free account works) and paste the answer back. Same quality as AI questions.</span></span></label>
+          </div>
 
-          <details class="alt">
-            <summary>No API key? Use Claude chat instead</summary>
+          <div id="m-run">
+            <button class="btn primary" id="gen-btn">Make test</button>
+            <button class="btn ghost" id="cancel-btn" hidden>Cancel</button>
+          </div>
+          <div id="m-chat" hidden>
             <ol class="small">
-              <li>Click <b>Copy prompt</b> and paste it into a chat at claude.ai.</li>
-              <li>Copy Claude’s JSON reply and paste it below.</li>
+              <li>Click <b>Copy prompt</b> and paste it into a chat at <a href="https://claude.ai/new" target="_blank" rel="noopener">claude.ai</a>.</li>
+              <li>Copy Claude’s whole reply and paste it below.</li>
             </ol>
             <button class="btn small" id="copy-prompt">Copy prompt</button>
-            <label>Paste Claude’s JSON reply
+            <label>Paste Claude’s reply
               <textarea id="paste-json" rows="5" placeholder='{"title": "...", "vocabulary": [...], "questionGroups": [...]}'></textarea>
             </label>
-            <button class="btn small" id="import-json">Create test from JSON</button>
-          </details>
+            <button class="btn primary small" id="import-json">Create test from reply</button>
+          </div>
+          <div class="progress" id="gen-progress" hidden><span></span><div class="bar"><i></i></div></div>
+          <div class="error" id="gen-error" hidden></div>
         </div>
       </div>`;
 
@@ -219,6 +258,54 @@
     };
     textEl.addEventListener('input', updateStats);
 
+    /* ----- file upload ----- */
+    const fileInput = $('#article-file');
+    const dz = $('#dropzone');
+    async function loadFile(file) {
+      const prog = document.getElementById('file-progress');
+      const err = document.getElementById('file-error');
+      err.hidden = true;
+      prog.hidden = false;
+      try {
+        const out = await A2I.readArticleFile(file, (m) => { prog.querySelector('span').textContent = m; });
+        // Look the fields up again: the page may have been redrawn while the file was read.
+        const t = document.getElementById('article-text');
+        if (!t) return;
+        t.value = out.text;
+        if (out.title) document.getElementById('article-title').value = out.title;
+        if (out.source) document.getElementById('article-source').value = out.source;
+        t.dispatchEvent(new Event('input'));
+        A2I.toast('Loaded “' + (out.title || file.name) + '” — check the text, then make the test');
+      } catch (e) {
+        err.textContent = e.message || String(e);
+        err.hidden = false;
+      } finally {
+        prog.hidden = true;
+      }
+    }
+    dz.addEventListener('click', () => fileInput.click());
+    dz.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); } });
+    fileInput.addEventListener('change', () => { if (fileInput.files[0]) loadFile(fileInput.files[0]); fileInput.value = ''; });
+    ['dragenter', 'dragover'].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.add('over'); }));
+    ['dragleave', 'drop'].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.remove('over'); }));
+    dz.addEventListener('drop', (e) => { const f = e.dataTransfer.files[0]; if (f) loadFile(f); });
+
+    /* ----- method choice ----- */
+    function syncMethod() {
+      newMethod = app.querySelector('input[name=method]:checked').value;
+      $('#m-run').hidden = newMethod === 'chat';
+      $('#m-chat').hidden = newMethod !== 'chat';
+      $('#gen-btn').textContent = newMethod === 'basic' ? 'Make basic test' : 'Generate IELTS test';
+      $('#diff-label').hidden = newMethod === 'basic';
+      // Basic mode can only make some question types.
+      app.querySelectorAll('#q-types .chip').forEach((c) => {
+        c.style.opacity = newMethod === 'basic' && !A2I.OFFLINE_TYPES.includes(c.dataset.type) ? 0.4 : '';
+        c.title = c.style.opacity ? 'Needs AI questions' : '';
+      });
+    }
+    app.querySelectorAll('input[name=method]').forEach((r) => r.addEventListener('change', syncMethod));
+    syncMethod();
+
     function collect() {
       const article = {
         title: $('#article-title').value.trim(),
@@ -230,7 +317,7 @@
         types: Array.from(app.querySelectorAll('#q-types input:checked')).map((i) => i.value),
         difficulty: $('#q-diff').value,
       };
-      if (A2I.wordCount(textEl.value) < 150) throw new Error('Please paste a longer article (at least 150 words).');
+      if (A2I.wordCount(textEl.value) < 150) throw new Error('Please add a longer article (at least 150 words).');
       if (!opts.types.length) throw new Error('Choose at least one question type.');
       return { article, opts };
     }
@@ -246,19 +333,24 @@
       let input;
       try { input = collect(); } catch (e) { return showError(e.message); }
       const s = store.getSettings();
+      if (newMethod === 'ai' && !s.keys[s.provider]) {
+        showError('Add an API key in Settings first (Gemini, Groq and OpenRouter keys are free), or choose “Basic questions” or “Claude chat”, which need no key.');
+        return;
+      }
       generating = new AbortController();
       $('#gen-btn').disabled = true;
       $('#cancel-btn').hidden = false;
       const prog = $('#gen-progress');
       prog.hidden = false;
+      const onProgress = (msg) => { prog.querySelector('span').textContent = msg; };
       try {
-        const test = await A2I.generateTest(input.article, input.opts, s, (msg) => {
-          prog.querySelector('span').textContent = msg;
-        }, generating.signal);
+        const test = newMethod === 'basic'
+          ? await A2I.generateOffline(input.article, input.opts, onProgress, generating.signal)
+          : await A2I.generateTest(input.article, input.opts, s, onProgress, generating.signal);
         store.saveTest(test);
         location.hash = '#/test/' + encodeURIComponent(test.id);
       } catch (e) {
-        showError(e.message || String(e));
+        showError(e.name === 'AbortError' ? 'Cancelled.' : (e.message || String(e)));
       } finally {
         generating = null;
         if (document.body.contains(prog)) {
@@ -296,7 +388,7 @@
         store.saveTest(test);
         location.hash = '#/test/' + encodeURIComponent(test.id);
       } catch (e) {
-        showError('Could not read that JSON: ' + e.message + (A2I.splitParagraphs(textEl.value).length ? '' : '\nTip: keep the article text pasted above so the passage can be shown.'));
+        showError('Could not read that reply: ' + e.message + (A2I.splitParagraphs(textEl.value).length ? '' : '\nTip: keep the article text above so the passage can be shown.'));
       }
     });
 
@@ -955,11 +1047,37 @@
   /* ---------- settings ---------- */
 
   const dlg = document.getElementById('settings-dialog');
+  const provSel = document.getElementById('set-provider');
+  let draft = null; // settings being edited, so switching provider keeps typed keys
+  let shown = null; // provider whose fields are on screen
+
+  provSel.innerHTML = Object.entries(A2I.PROVIDERS).map(([id, p]) => `<option value="${id}">${esc(p.label)}</option>`).join('');
+
+  function showProvider() {
+    const id = provSel.value;
+    const p = A2I.PROVIDERS[id];
+    shown = id;
+    document.getElementById('set-key').value = draft.keys[id] || '';
+    document.getElementById('set-model-claude').hidden = id !== 'claude';
+    document.getElementById('set-model-other').hidden = id === 'claude';
+    if (id === 'claude') document.getElementById('set-model').value = draft.models.claude || 'claude-opus-5-5';
+    else document.getElementById('set-model-name').value = draft.models[id] || p.model;
+    const link = document.getElementById('set-key-link');
+    link.href = p.keyUrl;
+    link.textContent = id === 'claude' ? 'Get a key (paid)' : 'Get a free key';
+  }
+  function keepDraft() {
+    const id = shown;
+    draft.keys[id] = document.getElementById('set-key').value.trim();
+    draft.models[id] = id === 'claude' ? document.getElementById('set-model').value : (document.getElementById('set-model-name').value.trim() || A2I.PROVIDERS[id].model);
+  }
+  provSel.addEventListener('change', () => { keepDraft(); showProvider(); });
+
   function openSettings() {
-    const s = store.getSettings();
-    document.getElementById('set-key').value = s.apiKey;
-    document.getElementById('set-model').value = s.model;
-    document.getElementById('set-timer').value = s.timerMinutes;
+    draft = store.getSettings();
+    provSel.value = draft.provider;
+    document.getElementById('set-timer').value = draft.timerMinutes;
+    showProvider();
     dlg.showModal();
   }
   document.getElementById('open-settings').addEventListener('click', openSettings);
@@ -968,11 +1086,11 @@
   });
   dlg.addEventListener('close', () => {
     if (dlg.returnValue !== 'save') return;
-    store.saveSettings({
-      apiKey: document.getElementById('set-key').value.trim(),
-      model: document.getElementById('set-model').value,
-      timerMinutes: Math.max(0, Number(document.getElementById('set-timer').value) || 0),
-    });
+    keepDraft();
+    draft.provider = provSel.value;
+    draft.timerMinutes = Math.max(0, Number(document.getElementById('set-timer').value) || 0);
+    store.saveSettings(draft);
+    if (draft.keys[draft.provider]) newMethod = 'ai';
     A2I.toast('Settings saved');
     if (!cur) route();
   });
