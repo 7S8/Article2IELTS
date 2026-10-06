@@ -8,6 +8,9 @@ Turn any newspaper or magazine article (The Atlantic, The Guardian, The Economis
 - **Highlighter**: select text in the passage and pick a colour, like underlining on the paper test. Highlights are saved.
 - **Dictionary for each article**: key words are underlined. Click one to see its definition, example, synonyms and CEFR level.
   Double-click any other word to look it up in an online dictionary.
+- **Translation** into Russian and 20 other languages (Settings → “Translate words to”): in the word pop-up, a
+  **Translate** button for any selected sentence, in the Dictionary tab, flashcards and print-outs. Free, no key
+  (Google Translate’s public endpoint, with MyMemory as a backup).
 - **My words**: save words with the sentence they came from, quiz yourself, and export them as CSV for Anki or Quizlet.
 - **Answer key**: score, an estimated band, the correct answers with explanations, and **Show in passage**,
   which highlights the sentence each answer comes from.
@@ -61,7 +64,8 @@ To add a bundled test, create `tests/<name>.js` in the same format as `tests/sam
 | `css/style.css` | Styles (light and dark mode) |
 | `js/storage.js` | Saving to the browser, backups, splitting paragraphs, checking test JSON |
 | `js/passage.js` | Showing the passage with dictionary words, highlights and answer locations |
-| `js/dictionary.js` | Free word look-up (dictionaryapi.dev and Wiktionary, with a time limit) |
+| `js/dictionary.js` | Free word look-up (dictionaryapi.dev, Wiktionary and Google, with a time limit) |
+| `js/translate.js` | Free translation of words and sentences |
 | `js/print.js` | Printable test, answer key and dictionary |
 | `js/generator.js` | Prompt and JSON schema, and calls to Claude, Gemini, Groq and OpenRouter |
 | `js/offline.js` | Basic question maker that needs no AI or key |

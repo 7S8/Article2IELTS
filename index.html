@@ -31,6 +31,7 @@
     <button type="button" class="swatch" data-color="blue" title="Highlight blue"></button>
     <span class="sep"></span>
     <button type="button" data-action="define">Define</button>
+    <button type="button" data-action="translate">Translate</button>
     <button type="button" data-action="save">+ My words</button>
     <button type="button" data-action="unhighlight" hidden>Remove highlight</button>
   </div>
@@ -61,6 +62,9 @@
         <input type="text" id="set-model-name" autocomplete="off" spellcheck="false">
         <span class="muted small" style="font-weight:400">Free models change from time to time. If you get “model not found”, check the service’s website for a current model name.</span>
       </label>
+      <label>Translate words to
+        <select id="set-lang"></select>
+      </label>
       <label>Reading timer (minutes, 0 = off)
         <input type="number" id="set-timer" min="0" max="120" step="1">
       </label>
@@ -79,6 +83,7 @@
   <script src="js/storage.js"></script>
   <script src="js/passage.js"></script>
   <script src="js/dictionary.js"></script>
+  <script src="js/translate.js"></script>
   <script src="js/print.js"></script>
   <script src="js/generator.js"></script>
   <script src="js/offline.js"></script>

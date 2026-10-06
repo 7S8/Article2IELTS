@@ -18,6 +18,20 @@
   };
 
   A2I.speak = speak;
+
+  /* Fill a translation line (async). el gets the text when it arrives. */
+  function fillTranslation(el, text) {
+    const lang = store.getSettings().translateTo;
+    if (!el || !lang) { if (el) el.hidden = true; return Promise.resolve(null); }
+    el.hidden = false;
+    el.innerHTML = '<span class="muted">' + esc(A2I.languageName(lang)) + ': …</span>';
+    return A2I.translate(text, lang).then((tr) => {
+      el.innerHTML = tr
+        ? '<span class="tr-lang">' + esc(A2I.languageName(lang)) + ':</span> ' + esc(A2I.translationLine(tr))
+        : '<span class="muted">Translation is not available right now.</span>';
+      return tr;
+    });
+  }
   function speak(word) {
     try {
       const u = new SpeechSynthesisUtterance(word);
@@ -952,6 +966,7 @@
     return `<div class="glossary-item">
       <div><span class="w">${esc(v.word)}</span>${v.partOfSpeech ? `<span class="pos">${esc(v.partOfSpeech)}</span>` : ''}${v.level ? `<span class="lvl">${esc(v.level)}</span>` : ''}${v.mine ? '<span class="lvl mine">my highlight</span>' : ''}</div>
       <div class="def-blur">${esc(v.definition)}</div>
+      <div class="tr def-blur" data-tr="${i}" ${v.translation ? '' : 'hidden'}>${v.translation ? `<span class="tr-lang">${esc(A2I.languageName(v.trLang))}:</span> ${esc(v.translation)}` : ''}</div>
       ${v.example ? `<div class="ex def-blur">“${esc(v.example)}”</div>` : ''}
       ${v.synonyms && v.synonyms.length ? `<div class="syn def-blur"><span class="muted">Synonyms:</span> ${v.synonyms.map(esc).join(', ')}</div>` : ''}
       ${v.context ? `<div class="ex">From: ${esc(v.context)}</div>` : ''}
@@ -983,6 +998,7 @@
         ? vocab.map((v, i) => glossaryItemHTML(v, i, { inPassage: true, save: true })).join('')
         : '<p class="muted">This test has no dictionary.</p>'}</div>`;
     bindGlossaryActions(body);
+    translateGlossary(cur.test, body);
     body.querySelector('#hide-defs').addEventListener('change', (e) => body.querySelector('#gloss-list').classList.toggle('hide-defs', e.target.checked));
     body.querySelector('#add-all-cards').addEventListener('click', () => {
       let n = 0;
@@ -991,6 +1007,7 @@
         if (store.addWord({
           word: v.word, partOfSpeech: v.partOfSpeech, definition: v.definition, example: v.example,
           synonyms: v.synonyms, level: v.level, context: hit ? contextFor(hit[0], hit[1].start, hit[1].end) : '', testTitle: cur.test.title,
+          translation: v.translation || '', trLang: v.trLang || '',
         })) n++;
       });
       A2I.toast(n ? `Added ${n} word${n === 1 ? '' : 's'} to your flashcards` : 'All these words are already in your flashcards');
@@ -1021,6 +1038,26 @@
     }));
   }
 
+  /* Translate the test's dictionary words once and keep them with the test. */
+  async function translateGlossary(test, body) {
+    const lang = store.getSettings().translateTo;
+    if (!lang) return;
+    const need = test.vocabulary.map((v, i) => i).filter((i) => !test.vocabulary[i].translation || test.vocabulary[i].trLang !== lang);
+    if (!need.length) return;
+    const res = await A2I.translateMany(need.map((i) => test.vocabulary[i].word), lang);
+    let changed = false;
+    need.forEach((i, k) => {
+      if (!res[k]) return;
+      const v = test.vocabulary[i];
+      v.translation = A2I.translationLine(res[k]);
+      v.trLang = lang;
+      changed = true;
+      const el = body.querySelector('[data-tr="' + i + '"]');
+      if (el) { el.hidden = false; el.innerHTML = `<span class="tr-lang">${esc(A2I.languageName(lang))}:</span> ${esc(v.translation)}`; }
+    });
+    if (changed && cur && cur.test === test) store.saveTest(test);
+  }
+
   function contextFor(p, start, end) {
     const text = cur.test.paragraphs[p];
     const s = Math.max(text.lastIndexOf('.', start) + 1, 0);
@@ -1041,6 +1078,11 @@
       testTitle: cur ? cur.test.title : '',
     });
     A2I.toast(added ? `Saved “${v.word}” to My words` : `“${v.word}” is already in My words`);
+    const lang = store.getSettings().translateTo;
+    if (added && lang) {
+      (v.translation && v.trLang === lang ? Promise.resolve(v.translation) : A2I.translate(v.word, lang).then(A2I.translationLine))
+        .then((t) => { if (t) store.updateWord(v.word, { translation: t, trLang: lang }); });
+    }
   }
 
   function renderHelp(body) {
@@ -1139,7 +1181,7 @@
     pendingSel = { p, start: start + lead, end: end - trail, text: text.trim() };
     popover.hidden = true;
     toolbar.querySelector('[data-action=unhighlight]').hidden = true;
-    toolbar.querySelectorAll('.swatch, [data-action=define], [data-action=save]').forEach((b) => { b.hidden = false; });
+    toolbar.querySelectorAll('.swatch, [data-action=define], [data-action=translate], [data-action=save]').forEach((b) => { b.hidden = false; });
     toolbar.hidden = false;
     placeNear(toolbar, range.getBoundingClientRect());
   }
@@ -1157,7 +1199,7 @@
     if (mark) {
       pendingSel = { highlightId: mark.dataset.h };
       popover.hidden = true;
-      toolbar.querySelectorAll('.swatch, [data-action=define], [data-action=save]').forEach((b) => { b.hidden = true; });
+      toolbar.querySelectorAll('.swatch, [data-action=define], [data-action=translate], [data-action=save]').forEach((b) => { b.hidden = true; });
       toolbar.querySelector('[data-action=unhighlight]').hidden = false;
       toolbar.hidden = false;
       placeNear(toolbar, mark.getBoundingClientRect());
@@ -1180,6 +1222,25 @@
       saveProgress();
       hideFloating();
       renderPassage();
+    } else if (b.dataset.action === 'translate') {
+      const rect = toolbar.getBoundingClientRect();
+      toolbar.hidden = true;
+      window.getSelection().removeAllRanges();
+      const lang = store.getSettings().translateTo || 'ru';
+      popover.innerHTML = `<button class="close" aria-label="Close">×</button>
+        <div class="ex" style="margin-bottom:6px">${esc(s.text.length > 300 ? s.text.slice(0, 300) + '…' : s.text)}</div>
+        <div class="tr" id="pop-tr"></div>
+        <div class="actions"><button class="btn small" data-pop="say">🔊 Listen</button>
+        <a class="btn small ghost" target="_blank" rel="noopener" href="https://translate.google.com/?sl=en&tl=${encodeURIComponent(lang)}&text=${encodeURIComponent(s.text.slice(0, 2000))}">Google Translate ↗</a></div>`;
+      popover.hidden = false;
+      placeNear(popover, rect);
+      popover.querySelector('.close').onclick = () => { popover.hidden = true; };
+      popover.querySelector('[data-pop=say]').onclick = () => speak(s.text);
+      if (!store.getSettings().translateTo) {
+        popover.querySelector('#pop-tr').innerHTML = '<span class="muted">Choose a language in Settings → “Translate words to”.</span>';
+      } else {
+        fillTranslation(popover.querySelector('#pop-tr'), s.text).then(() => placeNear(popover, rect));
+      }
     } else if (b.dataset.action === 'define' || b.dataset.action === 'save') {
       const rect = toolbar.getBoundingClientRect();
       const context = contextFor(s.p, s.start, s.end);
@@ -1205,12 +1266,14 @@
       <div style="margin-top:6px">${esc(v.definition)}</div>
       ${v.example ? `<div class="ex" style="margin-top:6px">“${esc(v.example)}”</div>` : ''}
       ${v.synonyms.length ? `<div class="small" style="margin-top:6px"><span class="muted">Synonyms:</span> ${v.synonyms.map(esc).join(', ')}</div>` : ''}
+      <div class="tr" id="pop-tr" hidden></div>
       <div class="actions">
         <button class="btn small" data-pop="say">🔊 Listen</button>
         <button class="btn small" data-pop="save">+ My words</button>
       </div>`;
     popover.hidden = false;
     placeNear(popover, rect || anchor.getBoundingClientRect());
+    fillTranslation(popover.querySelector('#pop-tr'), v.word);
     let context = '';
     if (anchor) {
       const ptext = anchor.closest('.ptext');
@@ -1232,6 +1295,8 @@
     popover.querySelector('.close').onclick = () => { popover.hidden = true; };
 
     const key = word.toLowerCase();
+    const lang = store.getSettings().translateTo;
+    if (lang) A2I.translate(word, lang); // start now; the result is cached for the popup below
     const entry = await A2I.lookup(word);
     const meanings = entry ? entry.meanings.slice(0, 3) : [];
     const result = A2I.firstSense(entry, word);
@@ -1248,12 +1313,14 @@
       ${entry ? meanings.map((m) => `<div style="margin-top:6px"><span class="pos">${esc(m.partOfSpeech)}</span>
         <ol>${m.definitions.slice(0, 2).map((d) => `<li>${esc(d.definition)}${d.example ? `<div class="ex">“${esc(d.example)}”</div>` : ''}</li>`).join('')}</ol></div>`).join('')
         : '<p class="muted">No dictionary entry found (or the online dictionaries could not be reached). Try Cambridge below, or save the word anyway.</p>'}
+      <div class="tr" id="pop-tr" hidden></div>
       <div class="actions">
         <button class="btn small" data-pop="say">🔊 Listen</button>
         <button class="btn small" data-pop="save">+ My words</button>
         <a class="btn small ghost" target="_blank" rel="noopener" href="https://dictionary.cambridge.org/dictionary/english/${encodeURIComponent(key)}">Cambridge ↗</a>
       </div>`;
     placeNear(popover, rect);
+    fillTranslation(popover.querySelector('#pop-tr'), word);
     popover.querySelector('.close').onclick = () => { popover.hidden = true; };
     popover.querySelector('[data-pop=say]').onclick = () => {
       if (audio) new Audio(audio).play().catch(() => speak(word));
@@ -1331,6 +1398,8 @@
   let draft = null; // settings being edited, so switching provider keeps typed keys
   let shown = null; // provider whose fields are on screen
 
+  document.getElementById('set-lang').innerHTML = '<option value="">No translation</option>' +
+    A2I.LANGUAGES.map(([c, n]) => `<option value="${c}">${esc(n)}</option>`).join('');
   provSel.innerHTML = Object.entries(A2I.PROVIDERS).map(([id, p]) => `<option value="${id}">${esc(p.label)}</option>`).join('');
 
   function showProvider() {
@@ -1357,6 +1426,7 @@
     draft = store.getSettings();
     provSel.value = draft.provider;
     document.getElementById('set-timer').value = draft.timerMinutes;
+    document.getElementById('set-lang').value = draft.translateTo;
     showProvider();
     dlg.showModal();
   }
@@ -1376,6 +1446,7 @@
     keepDraft();
     draft.provider = provSel.value;
     draft.timerMinutes = Math.max(0, Number(document.getElementById('set-timer').value) || 0);
+    draft.translateTo = document.getElementById('set-lang').value;
     store.saveSettings(draft);
     if (draft.keys[draft.provider]) {
       newMethod = 'ai';
@@ -1384,6 +1455,7 @@
     }
     A2I.toast('Settings saved');
     if (!cur) route();
+    else renderSide();
   });
 
   window.addEventListener('hashchange', route);

@@ -107,6 +107,7 @@
     return `<div class="dict">${sorted.map((v) => `<div class="word">
       <span class="w">${esc(v.word)}</span> ${v.partOfSpeech ? `<span class="pos">${esc(v.partOfSpeech)}</span>` : ''}${v.level ? `<span class="tag">${esc(v.level)}</span>` : ''}${v.mine ? '<span class="tag">my highlight</span>' : ''}
       <div>${esc(v.definition)}</div>
+      ${v.translation ? `<div><span style="color:#666">${esc(A2I.languageName ? A2I.languageName(v.trLang) : v.trLang)}:</span> ${esc(v.translation)}</div>` : ''}
       ${v.example ? `<div class="ex">“${esc(v.example)}”</div>` : ''}
       ${v.synonyms && v.synonyms.length ? `<div><span style="color:#666">Synonyms:</span> ${v.synonyms.map(esc).join(', ')}</div>` : ''}
     </div>`).join('')}</div>`;

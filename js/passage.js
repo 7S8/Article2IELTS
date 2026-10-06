@@ -15,11 +15,28 @@
 
   /* For each paragraph, find where glossary words appear.
      Returns [[{start, end, v}], ...] with no overlaps (longer terms win). */
+  // Curly and straight apostrophes/quotes are treated as the same (same length, so positions stay valid).
+  const flat = (t) => String(t).replace(/[‘’ʼ]/g, "'").replace(/[“”]/g, '"');
+
+  /* Other forms a dictionary word may take in the text: seek → seeks, seeking, sought is not covered. */
+  function forms(w) {
+    if (/\s/.test(w)) return [w];
+    const out = [w, w + 's', w + 'es', w + 'ed', w + 'd', w + 'ing', w + 'ly', w + 'er', w + 'ers'];
+    if (/e$/.test(w)) out.push(w.slice(0, -1) + 'ing', w.slice(0, -1) + 'ion');
+    if (/y$/.test(w)) out.push(w.slice(0, -1) + 'ies', w.slice(0, -1) + 'ied', w.slice(0, -1) + 'ily');
+    if (/[^aeiou][aeiou][bdgklmnprt]$/.test(w)) out.push(w + w.slice(-1) + 'ed', w + w.slice(-1) + 'ing');
+    if (A2I.lemmas) A2I.lemmas(w).forEach((l) => out.push(l));
+    return out;
+  }
+
   A2I.findVocab = function (paragraphs, vocabulary) {
-    return paragraphs.map((text) => {
+    return paragraphs.map((rawText) => {
+      const text = flat(rawText);
       const hits = [];
       vocabulary.forEach((v, vi) => {
-        const terms = Array.from(new Set([v.inText, v.word].filter(Boolean)));
+        const base = [v.inText, v.word].filter(Boolean).map(flat);
+        const terms = Array.from(new Set(base.concat(...base.map(forms)))).filter((t) => t.length > 2)
+          .sort((a, b) => b.length - a.length);
         terms.forEach((term) => {
           const re = new RegExp('(^|[^\\p{L}\\p{N}])(' + escRe(term) + ')(?=$|[^\\p{L}\\p{N}])', 'giu');
           let m;

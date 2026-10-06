@@ -1,11 +1,11 @@
 /* Looking up English words online, free and without a key.
-   Two sources are asked at the same time — dictionaryapi.dev and Wiktionary —
+   Three sources are asked at the same time — dictionaryapi.dev, Wiktionary and Google —
    and the first useful answer wins. Each has a time limit, so a slow or
    unreachable service never leaves the page stuck on "Looking up…". */
 (function () {
   const A2I = (window.A2I = window.A2I || {});
 
-  const TIMEOUT_MS = 6000;
+  const TIMEOUT_MS = 8000;
   const cache = {};
 
   /* Dictionary forms to try for an inflected word: "descendants" → "descendant". */
@@ -76,16 +76,30 @@
     return meanings.length ? { word, phonetic: '', audio: '', meanings } : null;
   }
 
-  /* First non-empty answer from the two sources, or null when neither has one. */
+  /* Google Translate's public endpoint also returns English definitions (dt=md). */
+  async function fromGoogle(word, signal) {
+    const data = await getJSON('https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=en&dt=md&dt=ex&q=' + encodeURIComponent(word), signal);
+    const defs = Array.isArray(data) && data[12];
+    if (!Array.isArray(defs) || !defs.length) return null;
+    const meanings = defs.map((m) => ({
+      partOfSpeech: m[0] || '',
+      synonyms: [],
+      definitions: (m[1] || []).map((d) => ({ definition: d[0], example: d[2] ? String(d[2]).replace(/<\/?b>/g, '') : '' })).filter((d) => d.definition),
+    })).filter((m) => m.definitions.length);
+    return meanings.length ? { word, phonetic: '', audio: '', meanings } : null;
+  }
+
+  /* First non-empty answer from the sources, or null when none has one. */
   function firstAnswer(word, signal) {
     return new Promise((resolve) => {
-      let pending = 2;
+      let pending = 3;
       const done = (r) => {
         if (r) { resolve(r); pending = -1; return; }
         if (--pending === 0) resolve(null);
       };
       fromDictionaryApi(word, signal).then(done, () => done(null));
       fromWiktionary(word, signal).then(done, () => done(null));
+      fromGoogle(word, signal).then(done, () => done(null));
     });
   }
 
@@ -95,10 +109,12 @@
     if (!key) return null;
     if (key in cache) return cache[key];
     const forms = /\s/.test(key) ? [key] : A2I.lemmas(key).slice(0, 4);
+    // All forms at once; the first form that has an answer wins.
+    const pending = forms.map((f) => firstAnswer(f, signal));
     let found = null;
-    for (const form of forms) {
-      found = await firstAnswer(form, signal);
-      if (found || (signal && signal.aborted)) break;
+    for (const p of pending) {
+      found = await p;
+      if (found) break;
     }
     if (!(signal && signal.aborted)) cache[key] = found;
     return found;

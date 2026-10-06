@@ -132,6 +132,7 @@
         models: Object.assign({ claude: 'claude-opus-5-5' }, s.models),
         timerMinutes: s.timerMinutes == null ? 20 : s.timerMinutes,
         speed: s.speed === 'best' ? 'best' : 'fast',
+        translateTo: s.translateTo == null ? 'ru' : s.translateTo, // '' = off
       };
       // Settings saved by the first version of the app.
       if (s.apiKey && !out.keys.claude) out.keys.claude = s.apiKey;
@@ -395,6 +396,8 @@
       synonyms: arr(v.synonyms).map(str).filter(Boolean),
       level: str(v.level),
       mine: !!v.mine,
+      translation: str(v.translation),
+      trLang: str(v.trLang),
     })).filter((v) => v.word && v.definition);
 
     return {

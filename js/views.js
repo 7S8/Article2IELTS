@@ -254,6 +254,7 @@
           : `<div class="fc-def">${esc(w.definition)}</div>${w.context ? `<div class="fc-context">“${esc(blank(w.context, w.word))}”</div>` : ''}`;
         const back = `<div class="fc-word">${esc(w.word)}</div>${w.partOfSpeech ? `<div class="muted">${esc(w.partOfSpeech)}</div>` : ''}
           <div class="fc-def">${esc(w.definition)}</div>
+          ${w.translation ? `<div class="tr"><span class="tr-lang">${esc(A2I.languageName(w.trLang))}:</span> ${esc(w.translation)}</div>` : ''}
           ${w.example ? `<div class="fc-context">“${esc(w.example)}”</div>` : ''}
           ${w.synonyms && w.synonyms.length ? `<div class="small"><span class="muted">Synonyms:</span> ${w.synonyms.map(esc).join(', ')}</div>` : ''}`;
         body = `
