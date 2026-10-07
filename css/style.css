@@ -414,6 +414,12 @@ dialog::backdrop { background: rgba(0, 0, 0, .4); }
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 4px;
 }
 .menu button { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 8px 10px; border-radius: 6px; font: inherit; color: var(--text); cursor: pointer; }
+
+/* Phones: the menu opens under the button, lined up with its left edge, so it never runs off the screen. */
+@media (max-width: 760px) {
+  .menu { left: 0; right: auto; width: min(260px, calc(100vw - 32px)); min-width: 0; }
+  .menu button { padding: 11px 12px; }
+}
 .menu button:hover { background: var(--surface-2); }
 .glossary-item .lvl.mine { background: var(--hl-yellow); color: var(--text); }
 
