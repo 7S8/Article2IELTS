@@ -94,6 +94,8 @@ body {
 }
 a { color: var(--accent); }
 h1, h2, h3 { line-height: 1.2; }
+/* Page titles: the same serif as the logo and passages, a calmer size on phones. */
+main h1 { font: 700 clamp(1.5rem, 1.15rem + 1.3vw, 2rem)/1.2 var(--serif); letter-spacing: -.01em; }
 .muted { color: var(--muted); }
 .small { font-size: .875rem; }
 [hidden] { display: none !important; }
