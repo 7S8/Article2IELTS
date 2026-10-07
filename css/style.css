@@ -446,7 +446,8 @@ dialog::backdrop { background: rgba(0, 0, 0, .4); }
 .lp-f { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
 .lp-f span { font-size: 1.5rem; }
 .lp-final { text-align: center; padding-bottom: 32px; }
-.lp-foot { text-align: center; border-top: 1px solid var(--border); padding: 12px 0 6px; font: italic 11px/1.5 var(--serif); letter-spacing: .02em; }
+.lp-foot { text-align: center; border-top: 1px solid var(--border); padding: 28px 0 0; font-size: 12px; line-height: 1.6; color: var(--muted); }
+body:has(.landing) #a2i-credit { margin-top: 0 !important; }
 
 /* landing: extras */
 .lp-rotate { color: var(--accent); display: inline-block; }

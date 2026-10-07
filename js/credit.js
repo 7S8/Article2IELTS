@@ -12,17 +12,21 @@
   A2I.CREDIT = TEXT;
   Object.freeze && Object.defineProperty(A2I, 'CREATOR', { value: CREATOR, writable: false, configurable: false });
 
-  const STYLE = 'display:block!important;visibility:visible!important;position:static!important;' +
-    'text-align:center;font:italic 11px/1.5 Georgia,"Times New Roman",serif;letter-spacing:.02em;color:inherit;opacity:.7!important;' +
-    'padding:12px 16px 14px;margin:0;border-top:1px solid rgba(127,127,127,.25);clip:auto!important;height:auto!important;' +
-    'transform:none!important;filter:none!important;font-size:11px!important;';
+  const STYLE = 'display:block!important;visibility:visible!important;opacity:1!important;position:static!important;' +
+    'text-align:center;font:12px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;letter-spacing:.01em;' +
+    'color:var(--muted,#6b6a66);padding:6px 16px 32px;margin:24px 0 0;border:0;clip:auto!important;height:auto!important;' +
+    'transform:none!important;filter:none!important;font-size:12px!important;';
 
   function make() {
     const f = document.createElement('footer');
     f.id = 'a2i-credit';
     f.setAttribute('role', 'contentinfo');
     f.setAttribute('style', STYLE);
-    f.textContent = TEXT;
+    // Same text as TEXT, with the creator's name in bold.
+    const name = document.createElement('b');
+    name.style.cssText = 'font-weight:600;color:var(--text,#1d1d1b)';
+    name.textContent = CREATOR;
+    f.append('Created by ', name, ' · © ' + YEAR + ' Article2IELTS. All rights reserved.');
     return f;
   }
 
