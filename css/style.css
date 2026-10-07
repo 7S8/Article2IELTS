@@ -601,3 +601,9 @@ dialog::backdrop { background: rgba(0, 0, 0, .4); }
 .oauth-btn { justify-content: center; gap: 10px; padding: 10px 14px; font-weight: 600; width: 100%; }
 .oauth-btn svg { flex: none; }
 .oauth .or { margin-top: 8px; }
+
+.help-dialog { max-width: 520px; width: calc(100vw - 32px); border: 1px solid var(--border); border-radius: 14px; background: var(--surface); color: var(--text); padding: 20px 22px; box-shadow: var(--shadow); }
+.help-dialog::backdrop { background: rgba(0, 0, 0, .35); }
+.help-dialog ol { padding-left: 20px; line-height: 1.6; }
+.help-dialog textarea { font: 13px/1.4 ui-monospace, Menlo, Consolas, monospace; border: 1px solid var(--border); border-radius: 8px; padding: 8px; background: var(--surface-2); color: var(--text); }
+.menu button .small { display: block; font-size: .78rem; }

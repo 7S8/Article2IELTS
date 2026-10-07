@@ -972,7 +972,7 @@
     return `<div class="glossary-item">
       <div><span class="w">${esc(v.word)}</span>${v.partOfSpeech ? `<span class="pos">${esc(v.partOfSpeech)}</span>` : ''}${v.level ? `<span class="lvl">${esc(v.level)}</span>` : ''}${v.mine ? '<span class="lvl mine">my highlight</span>' : ''}</div>
       <div class="def-blur">${esc(v.definition)}</div>
-      <div class="tr def-blur" data-tr="${i}" ${v.translation ? '' : 'hidden'}>${v.translation ? `<span class="tr-lang">${esc(A2I.languageName(v.trLang))}:</span> ${esc(v.translation)}` : ''}</div>
+      <div class="tr def-blur" data-tr="${i}" ${v.translation ? '' : 'hidden'}>${v.translation ? `${v.trLang ? `<span class="tr-lang">${esc(A2I.languageName(v.trLang))}:</span> ` : ''}${esc(v.translation)}` : ''}</div>
       ${v.example ? `<div class="ex def-blur">“${esc(v.example)}”</div>` : ''}
       ${v.synonyms && v.synonyms.length ? `<div class="syn def-blur"><span class="muted">Synonyms:</span> ${v.synonyms.map(esc).join(', ')}</div>` : ''}
       ${v.context ? `<div class="ex">From: ${esc(v.context)}</div>` : ''}
@@ -1375,7 +1375,15 @@
         </div>
         <div class="row">
           <label class="chip"><input type="checkbox" id="hide-defs"> Quiz me</label>
-          ${words.length ? '<button class="btn" id="export-csv">Export CSV (Anki / Quizlet)</button>' : ''}
+          ${words.length ? `<div class="menu-wrap">
+            <button class="btn" id="export-btn" aria-haspopup="true" aria-expanded="false">Export ▾</button>
+            <div class="menu" id="export-menu" hidden>
+              <button data-exp="quizlet">Copy for Quizlet / Anki <span class="muted small">paste into Import</span></button>
+              <button data-exp="docx">Word file (.docx) <span class="muted small">for the Quizlet app</span></button>
+              <button data-exp="txt">Text file (.txt) <span class="muted small">Quizlet / Anki import</span></button>
+              <button data-exp="csv">Spreadsheet (.csv) <span class="muted small">Excel, Google Sheets</span></button>
+            </div>
+          </div>` : ''}
         </div>
       </div>
       <div class="card" style="margin-top:12px" id="word-list">
@@ -1389,12 +1397,67 @@
       store.removeWord(b.dataset.remove);
       renderWords();
     }));
-    const exp = app.querySelector('#export-csv');
-    if (exp) exp.addEventListener('click', () => {
-      const q = (s) => '"' + String(s || '').replace(/"/g, '""') + '"';
-      const rows = words.map((w) => [w.word, w.partOfSpeech, w.definition, w.example, (w.synonyms || []).join('; '), w.context].map(q).join(','));
-      download('my-ielts-words.csv', 'word,part of speech,definition,example,synonyms,context\n' + rows.join('\n'), 'text/csv');
-    });
+    const expBtn = app.querySelector('#export-btn');
+    if (expBtn) {
+      const menu = app.querySelector('#export-menu');
+      const close = () => { menu.hidden = true; expBtn.setAttribute('aria-expanded', 'false'); };
+      expBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        menu.hidden = !menu.hidden;
+        expBtn.setAttribute('aria-expanded', String(!menu.hidden));
+      });
+      document.addEventListener('click', function off(e) {
+        if (!document.body.contains(menu)) { document.removeEventListener('click', off); return; }
+        if (!e.target.closest('.menu-wrap')) close();
+      });
+      menu.addEventListener('click', async (e) => {
+        const b = e.target.closest('[data-exp]');
+        if (!b) return;
+        close();
+        const X = A2I.wordsExport;
+        const kind = b.dataset.exp;
+        if (kind === 'quizlet') {
+          const text = X.cardsText(words);
+          let ok = false;
+          try { await navigator.clipboard.writeText(text); ok = true; } catch (err) { /* no clipboard access */ }
+          showQuizletHelp(ok ? null : text);
+        } else if (kind === 'docx') {
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(X.docx(words, 'My IELTS words'));
+          a.download = 'my-ielts-words.docx';
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 0);
+          A2I.toast('Saved. In the Quizlet app: Create → Select file → choose my-ielts-words.docx');
+        } else if (kind === 'txt') {
+          download('my-ielts-words.txt', X.cardsText(words), 'text/plain');
+          A2I.toast('Saved. Quizlet website: Create → Import → paste the file’s text. Anki: File → Import.');
+        } else {
+          download('my-ielts-words.csv', X.csv(words), 'text/csv');
+        }
+      });
+    }
+  }
+
+  // How to get the copied words into Quizlet. If copying was blocked, the text is shown to copy by hand.
+  function showQuizletHelp(textIfNotCopied) {
+    const d = document.createElement('dialog');
+    d.className = 'help-dialog';
+    d.innerHTML = `<h2 style="margin-top:0">${textIfNotCopied ? 'Copy your words' : 'Copied ✓'}</h2>
+      ${textIfNotCopied ? '<p>Select all the text below and copy it:</p><textarea readonly rows="8" style="width:100%"></textarea>' : ''}
+      <ol>
+        <li>Open <b>quizlet.com</b> in a browser (on a phone: open the site, not the app).</li>
+        <li>Press <b>Create</b> → <b>Flashcard set</b> → <b>+ Import</b>.</li>
+        <li>Paste. Quizlet makes one card per line (word → definition).</li>
+        <li>Leave “Between term and definition” on <b>Tab</b> and press <b>Import</b>.</li>
+      </ol>
+      <p class="muted small">Anki: save the text as a .txt file and use File → Import. In the Quizlet phone app use “Word file (.docx)”.</p>
+      <div class="row" style="justify-content:flex-end"><button class="btn primary" value="ok">OK</button></div>`;
+    document.body.appendChild(d);
+    if (textIfNotCopied) d.querySelector('textarea').value = textIfNotCopied;
+    d.querySelector('button').addEventListener('click', () => d.close());
+    d.addEventListener('close', () => d.remove());
+    d.showModal();
   }
 
   /* ---------- settings ---------- */
