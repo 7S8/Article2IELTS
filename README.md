@@ -13,7 +13,9 @@ Turn any newspaper or magazine article (The Atlantic, The Guardian, The Economis
 - **Translation** into Russian and 20 other languages (Settings → “Translate words to”): in the word pop-up, a
   **Translate** button for any selected sentence, in the Dictionary tab, flashcards and print-outs. Free, no key
   (Google Translate’s public endpoint, with MyMemory as a backup).
-- **My words**: save words with the sentence they came from, quiz yourself, and export them as CSV for Anki or Quizlet.
+- **My words**: save words with the sentence they came from, quiz yourself, and export them: **Copy for Quizlet / Anki**
+  (paste into Quizlet's *Import* on quizlet.com), a **Word file (.docx)** for the Quizlet phone app, a tab-separated
+  **.txt** file, or a **.csv** spreadsheet.
 - **Answer key**: score, an estimated band, the correct answers with explanations, and **Show in passage**,
   which highlights the sentence each answer comes from.
 - 20-minute timer (can be changed in Settings), and answers are saved as you go.
@@ -112,6 +114,7 @@ To add a bundled test, create `tests/<name>.js` in the same format as `tests/sam
 | `js/dictionary.js` | Free word look-up (dictionaryapi.dev, Wiktionary, Google and Datamuse, with a time limit) |
 | `js/translate.js` | Free translation of words and sentences |
 | `js/print.js` | Printable test, answer key and dictionary |
+| `js/export.js` | Exporting saved words for Quizlet, Anki, Word and spreadsheets |
 | `js/generator.js` | Prompt and JSON schema, and calls to Claude, Gemini, Groq and OpenRouter |
 | `js/offline.js` | Basic question maker that needs no AI or key |
 | `js/fileimport.js` | Reading articles from PDF, Word, HTML and text files |
