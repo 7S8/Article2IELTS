@@ -152,7 +152,7 @@
           <p class="muted">Create a free account and make your first test in a minute. A sample passage is waiting for you inside.</p>
           <div class="row" style="justify-content:center"><a class="btn primary lp-cta" href="#/signup">Start free</a></div>
         </section>
-        <footer class="lp-foot muted small">Article2IELTS by <b>Nuramatova Sakinat Ibnuabasovna</b> · practice tool, not affiliated with IELTS, the British Council, IDP or Cambridge.</footer>
+        <footer class="lp-foot muted small">Article2IELTS · practice tool, not affiliated with IELTS, the British Council, IDP or Cambridge.</footer>
       </div>`;
 
     app.querySelector('#lp-try').addEventListener('click', () => app.querySelector('#try').scrollIntoView({ behavior: 'smooth' }));
