@@ -18,7 +18,7 @@
           <div class="lp-pop">
             <div><b class="lp-w">thicket</b> <i class="muted">noun</i> <span class="badge">C2</span></div>
             <div>a group of bushes or small trees growing very closely together</div>
-            <div class="tr"><span class="tr-lang">Русский:</span> заросли, чаща</div>
+            <div class="tr" id="lp-pop-tr"><span class="tr-lang"><bdi>Русский</bdi>:</span> <bdi class="lp-pop-word">заросли, чаща</bdi></div>
           </div>
         </div>
         <div class="lp-questions">
@@ -33,11 +33,46 @@
     </div>`;
 
   const DEMO_WORDS = {
-    thicket: ['noun', 'a group of bushes or small trees growing very closely together', 'заросли, чаща'],
-    native: ['adjective', 'growing naturally in a place, not brought from somewhere else', 'местный, коренной'],
-    affordable: ['adjective', 'cheap enough for people to be able to pay for it', 'доступный (по цене)'],
-    crowded: ['adjective', 'full of people', 'переполненный, многолюдный'],
+    thicket: ['noun', 'a group of bushes or small trees growing very closely together'],
+    native: ['adjective', 'growing naturally in a place, not brought from somewhere else'],
+    affordable: ['adjective', 'cheap enough for people to be able to pay for it'],
+    crowded: ['adjective', 'full of people'],
   };
+
+  // Built-in translations of the demo words, so the demo works instantly.
+  // Other languages are translated live (free Google Translate endpoint).
+  const DEMO_TR = {
+    ru: { thicket: 'заросли, чаща', native: 'местный, коренной', affordable: 'доступный (по цене)', crowded: 'переполненный, многолюдный' },
+    uk: { thicket: 'зарості, хащі', native: 'місцевий, корінний', affordable: 'доступний (за ціною)', crowded: 'переповнений, людний' },
+    kk: { thicket: 'қалың бұта, ну', native: 'жергілікті', affordable: 'қолжетімді (бағасы)', crowded: 'адам көп, тығыз' },
+    uz: { thicket: 'chakalakzor, butazor', native: 'mahalliy', affordable: 'hamyonbop, arzon', crowded: 'gavjum, odam koʻp' },
+    tr: { thicket: 'çalılık', native: 'yerli', affordable: 'uygun fiyatlı', crowded: 'kalabalık' },
+    es: { thicket: 'matorral, espesura', native: 'autóctono, nativo', affordable: 'asequible', crowded: 'abarrotado, concurrido' },
+    fr: { thicket: 'fourré', native: 'indigène, local', affordable: 'abordable', crowded: 'bondé' },
+    de: { thicket: 'Dickicht', native: 'einheimisch', affordable: 'erschwinglich', crowded: 'überfüllt' },
+    'zh-CN': { thicket: '灌木丛', native: '本地的，原生的', affordable: '实惠的，负担得起的', crowded: '拥挤的' },
+    ar: { thicket: 'أَجَمة، أدغال', native: 'محلي، أصلي', affordable: 'ميسور التكلفة', crowded: 'مزدحم' },
+  };
+  const HERO_LANGS = ['ru', 'uz', 'kk', 'tr', 'es', 'zh-CN', 'ar', 'de'];
+
+  function demoLang() {
+    let saved = '';
+    try { saved = localStorage.getItem('a2i.demoLang') || ''; } catch (e) { /* ignore */ }
+    const codes = (A2I.LANGUAGES || []).map(([c]) => c);
+    if (codes.includes(saved)) return saved;
+    const nav = (navigator.language || '').toLowerCase();
+    const guess = codes.find((c) => nav === c.toLowerCase() || nav.split('-')[0] === c.split('-')[0]);
+    return guess || 'ru';
+  }
+
+  async function demoTranslate(word, lang) {
+    if (DEMO_TR[lang] && DEMO_TR[lang][word]) return DEMO_TR[lang][word];
+    try {
+      const tr = A2I.translate ? await A2I.translate(word, lang) : null;
+      if (!tr) return null;
+      return typeof tr === 'string' ? tr : (A2I.translationLine ? A2I.translationLine(tr) : tr.text || null);
+    } catch (e) { return null; }
+  }
 
   A2I.renderLanding = function (app) {
     app.innerHTML = `
@@ -75,7 +110,12 @@
           <p class="muted lp-sub">Read the short passage and answer three questions. Click the <span class="vocab">dotted words</span> to see what they mean.</p>
           <div class="lp-demo">
             <div class="lp-demo-text">
-              <div class="lp-ptitle">Small Forests, Big Claims</div>
+              <div class="lp-demo-head">
+                <div class="lp-ptitle">Small Forests, Big Claims</div>
+                <label class="lp-lang">Translate to
+                  <select id="lp-lang">${(A2I.LANGUAGES || [['ru', 'Русский']]).map(([c, n]) => `<option value="${c}">${n}</option>`).join('')}</select>
+                </label>
+              </div>
               <p class="lp-dp" id="lp-dp">On a narrow strip of land beside a motorway junction, a dense <span class="vocab" data-w="thicket">thicket</span> now rises well above head height.
                 <span data-ev="1">It is barely the size of a tennis court, yet it contains several dozen species of <span class="vocab" data-w="native">native</span> trees and shrubs.</span>
                 <span data-ev="2">Projects like this have spread from Japan to India, the Netherlands, Britain and beyond over the past two decades.</span>
@@ -169,17 +209,44 @@
       rot.classList.add('in');
     }, 2200);
 
-    // Click a dotted word.
+    // Click a dotted word: definition plus translation into the chosen language.
     const box = app.querySelector('#lp-wordbox');
+    const langSel = app.querySelector('#lp-lang');
+    langSel.value = demoLang();
+    let shown = null;
+    async function showWord(word) {
+      shown = word;
+      const [pos, def] = DEMO_WORDS[word];
+      const lang = langSel.value;
+      box.hidden = false;
+      box.innerHTML = `<b class="lp-w">${word}</b> <i class="muted">${pos}</i> <button type="button" class="lp-say" title="Listen">🔊</button>
+        <div>${def}</div><div class="tr"><span class="tr-lang"><bdi>${A2I.languageName ? A2I.languageName(lang) : lang}</bdi>:</span> <bdi class="lp-tr">…</bdi></div>`;
+      box.querySelector('.lp-say').onclick = () => { try { const u = new SpeechSynthesisUtterance(word); u.lang = 'en-GB'; speechSynthesis.speak(u); } catch (err) { /* no speech */ } };
+      const tr = await demoTranslate(word, lang);
+      if (shown !== word || langSel.value !== lang) return; // another word or language was picked meanwhile
+      const out = box.querySelector('.lp-tr');
+      out.textContent = tr || 'no connection — try again later';
+      out.classList.toggle('muted', !tr);
+    }
     app.querySelector('#lp-dp').addEventListener('click', (e) => {
       const w = e.target.closest('[data-w]');
-      if (!w) return;
-      const [pos, def, ru] = DEMO_WORDS[w.dataset.w];
-      box.hidden = false;
-      box.innerHTML = `<b class="lp-w">${w.dataset.w}</b> <i class="muted">${pos}</i> <button type="button" class="lp-say" title="Listen">🔊</button>
-        <div>${def}</div><div class="tr"><span class="tr-lang">Русский:</span> ${ru}</div>`;
-      box.querySelector('.lp-say').onclick = () => { try { const u = new SpeechSynthesisUtterance(w.dataset.w); u.lang = 'en-GB'; speechSynthesis.speak(u); } catch (err) { /* no speech */ } };
+      if (w) showWord(w.dataset.w);
     });
+    langSel.addEventListener('change', () => {
+      try { localStorage.setItem('a2i.demoLang', langSel.value); } catch (e) { /* ignore */ }
+      showWord(shown || 'thicket');
+    });
+
+    // The preview pop-up cycles through a few languages.
+    const popTr = app.querySelector('#lp-pop-tr');
+    let hi = 0;
+    const heroTimer = setInterval(() => {
+      if (!document.body.contains(popTr)) { clearInterval(heroTimer); return; }
+      hi = (hi + 1) % HERO_LANGS.length;
+      const c = HERO_LANGS[hi];
+      popTr.querySelector('.tr-lang bdi').textContent = A2I.languageName ? A2I.languageName(c) : c;
+      popTr.querySelector('.lp-pop-word').textContent = DEMO_TR[c].thicket;
+    }, 2200);
 
     // The mini test.
     const qs = Array.from(app.querySelectorAll('.lp-dq'));
