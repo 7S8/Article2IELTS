@@ -6,5 +6,5 @@
    Row Level Security (see supabase/schema.sql). Never put a secret / service_role key here. */
 window.A2I_CONFIG = window.A2I_CONFIG || {
   supabaseUrl: 'https://nhqxaiydhdhoacndbjnh.supabase.co',
-  supabaseAnonKey: '', // paste the Publishable key here: 'sb_publishable_…'
+  supabaseAnonKey: 'sb_publishable_Kn9mcSql-OWxQSLGfbyJxQ_r1eK4sQD',
 };
