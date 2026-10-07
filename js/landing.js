@@ -152,10 +152,24 @@
           <p class="muted">Create a free account and make your first test in a minute. A sample passage is waiting for you inside.</p>
           <div class="row" style="justify-content:center"><a class="btn primary lp-cta" href="#/signup">Start free</a></div>
         </section>
-        <footer class="lp-foot muted small">Article2IELTS · practice tool, not affiliated with IELTS, the British Council, IDP or Cambridge.</footer>
+        <footer class="lp-foot">
+          <div class="lp-foot-top">
+            <div>
+              <a class="brand" href="#/">Article<span>2</span>IELTS</a>
+              <p class="lp-foot-tag">Real IELTS Reading practice from the articles you actually want to read.</p>
+            </div>
+            <nav class="lp-foot-nav">
+              <button type="button" class="linklike" id="lp-foot-try">Try the demo</button>
+              <a href="#/login">Log in</a>
+              <a href="#/signup">Start free</a>
+            </nav>
+          </div>
+          <p class="lp-foot-note">Independent practice tool. Not affiliated with IELTS, the British Council, IDP or Cambridge.</p>
+        </footer>
       </div>`;
 
     app.querySelector('#lp-try').addEventListener('click', () => app.querySelector('#try').scrollIntoView({ behavior: 'smooth' }));
+    app.querySelector('#lp-foot-try').addEventListener('click', () => app.querySelector('#try').scrollIntoView({ behavior: 'smooth' }));
 
     // Rotating word in the headline.
     const words = ['article', 'news story', 'PDF', 'screenshot', 'blog post', 'magazine page'];

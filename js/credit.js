@@ -14,7 +14,7 @@
 
   const STYLE = 'display:block!important;visibility:visible!important;opacity:1!important;position:static!important;' +
     'text-align:center;font:12px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;letter-spacing:.01em;' +
-    'color:var(--muted,#6b6a66);padding:6px 16px 32px;margin:24px 0 0;border:0;clip:auto!important;height:auto!important;' +
+    'color:var(--muted,#6b6a66);background:var(--surface-2,#f0eee8);padding:14px 16px;margin:40px 0 0;border:0;border-top:1px solid var(--border,#dcd9d0);clip:auto!important;height:auto!important;' +
     'transform:none!important;filter:none!important;font-size:12px!important;';
 
   function make() {

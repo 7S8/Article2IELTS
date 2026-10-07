@@ -446,7 +446,14 @@ dialog::backdrop { background: rgba(0, 0, 0, .4); }
 .lp-f { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
 .lp-f span { font-size: 1.5rem; }
 .lp-final { text-align: center; padding-bottom: 32px; }
-.lp-foot { text-align: center; border-top: 1px solid var(--border); padding: 28px 0 0; font-size: 12px; line-height: 1.6; color: var(--muted); }
+.lp-foot { margin-top: 24px; padding: 36px 0 28px; border-top: 1px solid var(--border); }
+.lp-foot-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; flex-wrap: wrap; }
+.lp-foot .brand { font-size: 1.15rem; }
+.lp-foot-tag { margin: 6px 0 0; color: var(--muted); font-size: .9rem; max-width: 34ch; }
+.lp-foot-nav { display: flex; gap: 22px; align-items: center; font-size: .9rem; }
+.lp-foot-nav a, .lp-foot-nav .linklike { color: var(--text); text-decoration: none; padding: 0; font: inherit; background: none; border: 0; border-radius: 0; }
+.lp-foot-nav a:hover, .lp-foot-nav .linklike:hover { color: var(--accent); }
+.lp-foot-note { margin: 28px 0 0; color: var(--muted); font-size: .78rem; }
 body:has(.landing) #a2i-credit { margin-top: 0 !important; }
 
 /* landing: extras */
