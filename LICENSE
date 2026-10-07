@@ -1,0 +1,12 @@
+Copyright (c) 2026 Nuramatova Sakinat Ibnuabasovna. All rights reserved.
+
+Article2IELTS was created by Nuramatova Sakinat Ibnuabasovna.
+
+No part of this software, its design or its content may be copied, modified, published,
+distributed or used to create derivative works without the prior written permission of
+the author, Nuramatova Sakinat Ibnuabasovna. Any permitted use must keep this copyright notice and the visible credit
+"Created by Nuramatova Sakinat Ibnuabasovna" on every page of the site.
+
+Third-party components keep their own licences: the English word list in js/words-en.js is
+from SCOWL (copyright notice in that file); libraries loaded from CDNs (Supabase, pdf.js,
+mammoth, Tesseract.js, Anthropic SDK) are under their own licences.
