@@ -616,6 +616,7 @@
               <button data-print="answers">Answer key</button>
               <button data-print="dictionary">Dictionary</button>
               <button data-print="all">Everything</button>
+              <button class="menu-cancel" data-close>Cancel</button>
             </div>
           </div>
           <a class="btn small" href="#/">← My tests</a>
@@ -645,6 +646,7 @@
       printBtn.setAttribute('aria-expanded', String(!printMenu.hidden));
     });
     printMenu.addEventListener('click', (e) => {
+      if (e.target.closest('[data-close]')) { printMenu.hidden = true; printBtn.setAttribute('aria-expanded', 'false'); return; }
       const b = e.target.closest('[data-print]');
       if (!b) return;
       printMenu.hidden = true;
