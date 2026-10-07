@@ -10,3 +10,4 @@ the author, Nuramatova Sakinat Ibnuabasovna. Any permitted use must keep this co
 Third-party components keep their own licences: the English word list in js/words-en.js is
 from SCOWL (copyright notice in that file); libraries loaded from CDNs (Supabase, pdf.js,
 mammoth, Tesseract.js, Anthropic SDK) are under their own licences.
+The letters in the site icon (icons/) are drawn from the Caladea Bold font (Apache License 2.0).
