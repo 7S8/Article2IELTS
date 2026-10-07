@@ -6,23 +6,48 @@
   const A2I = (window.A2I = window.A2I || {});
   const CREATOR = 'Nuramatova Sakinat Ibnuabasovna';
   const YEAR = Math.max(2026, new Date().getFullYear());
-  const TEXT = 'Created by ' + CREATOR + ' · © ' + YEAR + ' Article2IELTS. All rights reserved.';
+  const NOTE = '© ' + YEAR + ' Article2IELTS · All rights reserved · Not affiliated with IELTS, the British Council, IDP or Cambridge';
+  const TEXT = 'Article2IELTS' + 'Made with ♥ by' + CREATOR + NOTE; // the footer's full text, used to check it is intact
 
   A2I.CREATOR = CREATOR;
-  A2I.CREDIT = TEXT;
+  A2I.CREDIT = 'Created by ' + CREATOR + ' · © ' + YEAR + ' Article2IELTS. All rights reserved.';
   Object.freeze && Object.defineProperty(A2I, 'CREATOR', { value: CREATOR, writable: false, configurable: false });
 
-  const STYLE = 'display:block!important;visibility:visible!important;position:static!important;' +
-    'text-align:center;font:italic 11px/1.5 Georgia,"Times New Roman",serif;letter-spacing:.02em;color:inherit;opacity:.7!important;' +
-    'padding:12px 16px 14px;margin:0;border-top:1px solid rgba(127,127,127,.25);clip:auto!important;height:auto!important;' +
-    'transform:none!important;filter:none!important;font-size:11px!important;';
+  const STYLE = 'display:block!important;visibility:visible!important;opacity:1!important;position:static!important;' +
+    'text-align:center;font:12px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--muted,#6b6a66);' +
+    'padding:30px 16px 28px;margin:40px 16px 0;border:0;border-top:1px solid var(--border,#dcd9d0);clip:auto!important;' +
+    'height:auto!important;transform:none!important;filter:none!important;';
+
+  // Handwritten font for the signature (falls back to a script font if it can't load).
+  function loadFont() {
+    if (document.getElementById('a2i-credit-font')) return;
+    const l = document.createElement('link');
+    l.id = 'a2i-credit-font';
+    l.rel = 'stylesheet';
+    l.href = 'https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap';
+    document.head.appendChild(l);
+  }
+
+  function el(tag, css, ...kids) {
+    const e = document.createElement(tag);
+    e.style.cssText = css;
+    e.append(...kids);
+    return e;
+  }
 
   function make() {
     const f = document.createElement('footer');
     f.id = 'a2i-credit';
     f.setAttribute('role', 'contentinfo');
     f.setAttribute('style', STYLE);
-    f.textContent = TEXT;
+    const brand = el('div', 'font:700 1.15rem Georgia,"Times New Roman",serif;color:var(--text,#1d1d1b)',
+      'Article', el('span', 'color:var(--accent,#b3261e)', '2'), 'IELTS');
+    const made = el('div', 'margin:14px 0 0;font-size:11.5px;letter-spacing:.16em;text-transform:uppercase',
+      'Made with ', el('span', 'color:var(--accent,#b3261e)', '♥'), ' by');
+    const sig = el('div', 'font:400 36px/1.25 "Great Vibes","Segoe Script","Brush Script MT",cursive;color:var(--text,#1d1d1b);' +
+      'margin:0;white-space:normal;overflow-wrap:anywhere', CREATOR);
+    const note = el('div', 'margin:14px auto 0;font-size:11.5px;max-width:90ch', NOTE);
+    f.append(brand, made, sig, note);
     return f;
   }
 
@@ -44,6 +69,7 @@
   }
 
   function start() {
+    loadFont();
     ensure();
     // Put the credit back whenever something removes or edits it.
     new MutationObserver(() => {
