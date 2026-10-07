@@ -204,6 +204,12 @@
 
   /* ---------- accounts, same interface as the local ones ---------- */
 
+  function needClient() {
+    if (!cloud.client) {
+      throw new Error('Could not connect to the account server' + (cloud.startError ? ': ' + cloud.startError : '.') + ' Check your internet connection and reload the page.');
+    }
+  }
+
   A2I.auth = {
     cloud: true,
     user() {
@@ -213,6 +219,7 @@
       return true;
     },
     async register({ name, email, password, level, target }) {
+      needClient();
       name = String(name || '').trim();
       email = String(email || '').trim().toLowerCase();
       if (!name) throw new Error('Please enter your name.');
@@ -232,6 +239,7 @@
       return cloud.profile;
     },
     async login(email, password) {
+      needClient();
       const { data, error } = await cloud.client.auth.signInWithPassword({ email: String(email || '').trim().toLowerCase(), password });
       if (error) throw new Error(friendly(error));
       await startSession(data.session);
@@ -241,13 +249,14 @@
       clearTimeout(flushTimer);
       cloud.profile = null;
       A2I.store._setUser(null);
-      cloud.client.auth.signOut();
+      if (cloud.client) cloud.client.auth.signOut();
     },
     updateProfile(patch) {
       Object.assign(cloud.profile, patch);
       cloud.changed('profile', null, patch);
     },
     async resetPassword(email) {
+      needClient();
       const { error } = await cloud.client.auth.resetPasswordForEmail(String(email || '').trim().toLowerCase(), { redirectTo: location.href.split('#')[0] });
       if (error) throw new Error(friendly(error));
     },

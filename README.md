@@ -75,6 +75,24 @@ The **Admin** page shows the number of users, active users, tests finished and a
 day, and a searchable, sortable list of users with their results, where you can view a user's tests, make or remove
 admins, block or unblock, delete an account with all its data, and export the list as CSV.
 
+### Emails (sign-up confirmation, password reset)
+
+Supabase's built-in email sender is only for testing: it sends just a few emails per hour and only to the
+project team's own addresses. For real users, connect your own email service (SMTP):
+
+1. Create a free account at an email service, for example **Brevo** (300 emails/day free) or **Resend**
+   (3,000/month free, needs your own domain). A Gmail account with an
+   [app password](https://myaccount.google.com/apppasswords) also works for small numbers (host `smtp.gmail.com`,
+   port `465`).
+2. In Supabase open **Authentication → Emails → SMTP Settings**, turn on **Custom SMTP** and fill in the host,
+   port, user name, password, sender email and sender name (e.g. “Article2IELTS”) from your email service.
+3. In **Authentication → Rate Limits**, raise “Rate limit for sending emails” (e.g. to 100 per hour).
+4. In **Authentication → Emails → Templates**, paste the branded templates from
+   [`supabase/email-templates/`](supabase/email-templates/) — `confirm-signup.html` (subject: *Confirm your email for
+   Article2IELTS*), `reset-password.html` (*Reset your Article2IELTS password*), `magic-link.html` and
+   `change-email.html`.
+5. Make sure **Authentication → URL Configuration → Site URL** is your site’s address, so the links in the emails open it.
+
 ## Adding tests to the repo
 
 To add a bundled test, create `tests/<name>.js` in the same format as `tests/sample-tiny-forests.js` and add a
@@ -100,6 +118,8 @@ To add a bundled test, create `tests/<name>.js` in the same format as `tests/sam
 | `js/app.js` | Pages: test list, new test, test view, my words, settings |
 | `js/views.js` | Sign up / log in, dashboard, flashcards |
 | `js/admin.js` | Admin panel: statistics and user management |
+| `js/landing.js` | Home page for visitors (what the site does, preview, sign-up) |
+| `supabase/email-templates/` | Branded emails for sign-up confirmation, password reset and more |
 | `js/config.js` | Database connection settings (Supabase URL and public key) |
 | `js/cloud.js` | Online accounts and background sync with Supabase |
 | `supabase/schema.sql` | Database tables, security rules and admin functions |

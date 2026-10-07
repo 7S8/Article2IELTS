@@ -97,8 +97,11 @@
     window.scrollTo(0, 0);
     const user = A2I.auth.user();
     document.querySelector('.topnav').hidden = !user;
+    document.getElementById('guestnav').hidden = !!user || view === 'login' || view === 'signup';
     if (!user) {
-      return A2I.renderAuth(app, () => {
+      // Visitors see the home page first; log-in and sign-up have their own addresses.
+      if (view !== 'login' && view !== 'signup') return A2I.renderLanding(app);
+      return A2I.renderAuth(app, view === 'signup' ? 'register' : 'login', () => {
         A2I.toast('Welcome, ' + A2I.auth.user().name + '!');
         if (location.hash === '#/dashboard') route();
         else location.hash = '#/dashboard';

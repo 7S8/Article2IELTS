@@ -29,8 +29,8 @@
 
   /* ---------- sign up / log in ---------- */
 
-  A2I.renderAuth = function (app, onDone) {
-    let mode = A2I.auth.hasAccounts() ? 'login' : 'register';
+  A2I.renderAuth = function (app, startMode, onDone) {
+    let mode = startMode || (A2I.auth.hasAccounts() ? 'login' : 'register');
     function draw(error, notice) {
       app.innerHTML = `
         <div class="auth-wrap">
@@ -56,7 +56,7 @@
               <button class="btn primary" style="width:100%;justify-content:center;margin-top:16px" type="submit">${mode === 'login' ? 'Log in' : 'Sign up'}</button>
             </form>
             <p class="small" style="text-align:center;margin-bottom:0">
-              ${mode === 'login' ? 'New here? <a href="#" id="switch">Create an account</a>' : (A2I.auth.hasAccounts() ? 'Already have an account? <a href="#" id="switch">Log in</a>' : '')}
+              ${mode === 'login' ? 'New here? <a href="#" id="switch">Create an account</a>' : 'Already have an account? <a href="#" id="switch">Log in</a>'}
             </p>
             ${A2I.auth.cloud
               ? (mode === 'login' ? '<p class="small" style="text-align:center;margin:6px 0 0"><a href="#" id="forgot">Forgot your password?</a></p>' : '') +
@@ -72,13 +72,18 @@
         if (!email) return;
         try {
           await A2I.auth.resetPassword(email);
-          draw('', 'We sent a link to ' + email + ' to choose a new password.');
+          draw('', 'If an account exists for ' + email + ', we have sent it a link to choose a new password. Check the Spam folder too. No account yet? Use “Create an account”.');
         } catch (err) {
           draw(err.message);
         }
       });
       const sw = app.querySelector('#switch');
-      if (sw) sw.addEventListener('click', (e) => { e.preventDefault(); mode = mode === 'login' ? 'register' : 'login'; draw(); });
+      if (sw) sw.addEventListener('click', (e) => {
+        e.preventDefault();
+        mode = mode === 'login' ? 'register' : 'login';
+        history.replaceState(null, '', mode === 'login' ? '#/login' : '#/signup');
+        draw();
+      });
       app.querySelector('#auth-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const f = new FormData(e.target);
