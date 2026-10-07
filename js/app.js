@@ -105,6 +105,8 @@
       });
     }
     document.getElementById('logout').textContent = 'Log out (' + user.name + ')';
+    document.getElementById('nav-admin').hidden = user.role !== 'admin';
+    if (view === 'admin') return A2I.renderAdmin(app);
     if (view === 'new') return renderNew();
     if (view === 'words') return renderWords();
     if (view === 'dashboard') return A2I.renderDashboard(app);
@@ -1435,8 +1437,9 @@
     if (!confirm('Log out? Your data stays saved in this browser.')) return;
     A2I.auth.logout();
     newMethod = null;
-    location.hash = '#/';
-    route();
+    // Draw the log-in page once: either now, or through the address change.
+    if (location.hash === '#/' || location.hash === '') route();
+    else location.hash = '#/';
   });
   document.addEventListener('click', (e) => {
     if (e.target.closest('[data-open-settings]')) { e.preventDefault(); openSettings(); }
@@ -1459,5 +1462,7 @@
   });
 
   window.addEventListener('hashchange', route);
-  route();
+  // With the online database, wait until the saved log-in has been checked.
+  app.innerHTML = '<div class="card empty"><p class="muted">Loading…</p></div>';
+  (A2I.cloud && A2I.cloud.ready ? A2I.cloud.ready : Promise.resolve()).then(route);
 })();

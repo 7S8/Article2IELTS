@@ -31,7 +31,7 @@
 
   A2I.renderAuth = function (app, onDone) {
     let mode = A2I.auth.hasAccounts() ? 'login' : 'register';
-    function draw(error) {
+    function draw(error, notice) {
       app.innerHTML = `
         <div class="auth-wrap">
           <div class="card auth-card">
@@ -52,14 +52,31 @@
                     <select name="target">${['5.5', '6', '6.5', '7', '7.5', '8', '8.5', '9'].map((b) => `<option ${b === '7' ? 'selected' : ''}>${b}</option>`).join('')}</select></label>
                 </div>` : ''}
               ${error ? `<div class="error">${esc(error)}</div>` : ''}
+              ${notice ? `<div class="notice">${esc(notice)}</div>` : ''}
               <button class="btn primary" style="width:100%;justify-content:center;margin-top:16px" type="submit">${mode === 'login' ? 'Log in' : 'Sign up'}</button>
             </form>
             <p class="small" style="text-align:center;margin-bottom:0">
               ${mode === 'login' ? 'New here? <a href="#" id="switch">Create an account</a>' : (A2I.auth.hasAccounts() ? 'Already have an account? <a href="#" id="switch">Log in</a>' : '')}
             </p>
-            <p class="muted small" style="margin-bottom:0">Accounts are saved in this browser on this device. Use “Save backup” on the My tests page to move your data to another device.</p>
+            ${A2I.auth.cloud
+              ? (mode === 'login' ? '<p class="small" style="text-align:center;margin:6px 0 0"><a href="#" id="forgot">Forgot your password?</a></p>' : '') +
+                '<p class="muted small" style="margin-bottom:0">Your account and progress are saved online, so you can log in from any device.</p>'
+              : '<p class="muted small" style="margin-bottom:0">Accounts are saved in this browser on this device. Use “Save backup” on the My tests page to move your data to another device.</p>'}
+            ${A2I.cloud && A2I.cloud.startError ? `<div class="error">${esc(A2I.cloud.startError)}</div>` : ''}
           </div>
         </div>`;
+      const forgot = app.querySelector('#forgot');
+      if (forgot) forgot.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const email = (app.querySelector('input[name=email]').value || '').trim() || prompt('Your email address:');
+        if (!email) return;
+        try {
+          await A2I.auth.resetPassword(email);
+          draw('', 'We sent a link to ' + email + ' to choose a new password.');
+        } catch (err) {
+          draw(err.message);
+        }
+      });
       const sw = app.querySelector('#switch');
       if (sw) sw.addEventListener('click', (e) => { e.preventDefault(); mode = mode === 'login' ? 'register' : 'login'; draw(); });
       app.querySelector('#auth-form').addEventListener('submit', async (e) => {
@@ -72,7 +89,7 @@
           else await A2I.auth.register({ name: f.get('name'), email: f.get('email'), password: f.get('password'), level: f.get('level'), target: f.get('target') });
           onDone();
         } catch (err) {
-          draw(err.message);
+          if (err.notice) { mode = 'login'; draw('', err.message); } else draw(err.message);
           const em = app.querySelector('input[name=email]');
           if (em) em.value = f.get('email') || '';
           const nm = app.querySelector('input[name=name]');

@@ -50,6 +50,31 @@ Turn any newspaper or magazine article (The Atlantic, The Guardian, The Economis
 
 A sample test (“Small Forests, Big Claims”) is included so you can try the app straight away.
 
+## Database for many users (optional)
+
+Without a database, accounts and progress are stored in each visitor's browser. To let people log in from
+any device and to manage everyone from the **Admin** page, connect a free [Supabase](https://supabase.com)
+project (free plan: 50,000 monthly active users, 500 MB database):
+
+1. Create an account and a new project at supabase.com (choose a region close to your users).
+2. Open **SQL Editor → New query**, paste the whole of [`supabase/schema.sql`](supabase/schema.sql) and press **Run**.
+3. Open **Project Settings → API**, copy the **Project URL** and the **anon public** key into
+   [`js/config.js`](js/config.js).
+4. In **Authentication → URL Configuration**, set **Site URL** to the address of your site (e.g. your GitHub Pages URL),
+   so confirmation and password-reset emails link back to it. You can turn off **Confirm email** under
+   Authentication → Providers → Email if you don't want email confirmation.
+5. Open the site and sign up. **The first account becomes the admin** and sees the **Admin** link in the menu.
+
+What gets stored online: profile (name, email, level, target band), tests, answers and highlights, saved words and
+flashcard progress, finished tests and settings. **API keys for AI services are never sent to the database.**
+Every table uses Row Level Security, so users can only read and change their own data; admins use the checked
+`admin_*` functions. The browser keeps a copy and syncs changes in the background, so the site stays fast and
+keeps working if the connection drops for a while.
+
+The **Admin** page shows the number of users, active users, tests finished and average band, new users and tests per
+day, and a searchable, sortable list of users with their results, where you can view a user's tests, make or remove
+admins, block or unblock, delete an account with all its data, and export the list as CSV.
+
 ## Adding tests to the repo
 
 To add a bundled test, create `tests/<name>.js` in the same format as `tests/sample-tiny-forests.js` and add a
@@ -74,4 +99,8 @@ To add a bundled test, create `tests/<name>.js` in the same format as `tests/sam
 | `js/words-en.js` | English word list (SCOWL) used to fix misread letters |
 | `js/app.js` | Pages: test list, new test, test view, my words, settings |
 | `js/views.js` | Sign up / log in, dashboard, flashcards |
+| `js/admin.js` | Admin panel: statistics and user management |
+| `js/config.js` | Database connection settings (Supabase URL and public key) |
+| `js/cloud.js` | Online accounts and background sync with Supabase |
+| `supabase/schema.sql` | Database tables, security rules and admin functions |
 | `tests/` | Bundled tests |

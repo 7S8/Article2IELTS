@@ -42,6 +42,8 @@
   })();
 
   const key = (name) => KEYS[name] + '@' + userId;
+  // Tell the online database about a change (no-op without one).
+  const notify = (kind, k, value) => { if (A2I.cloud && A2I.cloud.changed) A2I.cloud.changed(kind, k, value); };
 
   function toHex(buf) {
     return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
@@ -64,7 +66,18 @@
 
   A2I.auth = {
     user() {
-      return userId ? read(ACCOUNTS, []).find((a) => a.id === userId) || null : null;
+      const accounts = read(ACCOUNTS, []);
+      const a = userId ? accounts.find((x) => x.id === userId) : null;
+      if (!a) return null;
+      // On this device the first account is the admin unless roles were set.
+      const role = a.role || (accounts.some((x) => x.role === 'admin') ? 'user' : (accounts[0].id === a.id ? 'admin' : 'user'));
+      return Object.assign({}, a, { role });
+    },
+    accounts() {
+      return read(ACCOUNTS, []);
+    },
+    saveAccounts(list) {
+      write(ACCOUNTS, list);
     },
     hasAccounts() {
       return read(ACCOUNTS, []).length > 0;
@@ -83,6 +96,7 @@
         name, email, salt,
         hash: await hashPassword(password, salt),
         level: level || '', target: target || '',
+        role: accounts.length === 0 ? 'admin' : 'user',
         created: Date.now(),
       };
       const first = accounts.length === 0;
@@ -106,8 +120,11 @@
       if (!account || (await hashPassword(password, account.salt)) !== account.hash) {
         throw new Error('Wrong email or password.');
       }
+      if (account.blocked) throw new Error('This account has been blocked on this device.');
       userId = account.id;
       write(SESSION, { userId });
+      account.lastSeen = Date.now();
+      write(ACCOUNTS, read(ACCOUNTS, []).map((a) => (a.id === account.id ? account : a)));
       return account;
     },
     logout() {
@@ -141,6 +158,15 @@
     },
     saveSettings(s) {
       write(key('settings'), s);
+      notify('settings', null, s);
+    },
+    _setUser(id) {
+      userId = id;
+    },
+    // Raw access for syncing (does not report changes back).
+    _raw: {
+      get: (name, fallback) => read(key(name), fallback),
+      set: (name, value) => write(key(name), value),
     },
 
     /* Tests created in the browser live in localStorage; bundled tests come
@@ -168,6 +194,7 @@
       delete copy.bundled;
       if (i >= 0) own[i] = copy;
       else own.unshift(copy);
+      notify('tests', copy.id, copy);
       return write(key('tests'), own);
     },
     deleteTest(id) {
@@ -175,6 +202,8 @@
       const p = read(key('progress'), {});
       delete p[id];
       write(key('progress'), p);
+      notify('tests', id, null);
+      notify('progress', id, null);
     },
 
     getProgress(id) {
@@ -190,6 +219,7 @@
       const p = read(key('progress'), {});
       p[id] = progress;
       write(key('progress'), p);
+      notify('progress', id, progress);
     },
 
     getWords() {
@@ -204,17 +234,20 @@
         write(key('words'), words);
         return false;
       }
-      words.unshift(Object.assign({ added: Date.now() }, entry));
+      const item = Object.assign({ added: Date.now() }, entry);
+      words.unshift(item);
       write(key('words'), words);
+      notify('words', item.word, item);
       return true;
     },
     updateWord(word, patch) {
       const words = read(key('words'), []);
       const w = words.find((x) => x.word === word);
-      if (w) { Object.assign(w, patch); write(key('words'), words); }
+      if (w) { Object.assign(w, patch); write(key('words'), words); notify('words', w.word, w); }
     },
     removeWord(word) {
       write(key('words'), read(key('words'), []).filter((w) => w.word !== word));
+      notify('words', word, null);
     },
 
     /* Finished tests, newest last: {testId, title, at, correct, total, band, byType: {type: [correct, total]}, seconds, overTime} */
@@ -225,6 +258,7 @@
       const list = read(key('attempts'), []);
       list.push(a);
       write(key('attempts'), list.slice(-500));
+      notify('attempts', a.testId + '|' + a.at, a);
     },
 
     getDraft() {
@@ -273,6 +307,10 @@
       (data.attempts || []).forEach((a) => { if (a && !seen.has(a.testId + ':' + a.at)) attempts.push(a); });
       attempts.sort((x, y) => x.at - y.at);
       write(key('attempts'), attempts);
+      tests.forEach((t) => notify('tests', t.id, t));
+      Object.entries(progress).forEach(([id, pr]) => notify('progress', id, pr));
+      words.forEach((w) => notify('words', w.word, w));
+      attempts.forEach((a) => notify('attempts', a.testId + '|' + a.at, a));
       return { newTests, newWords };
     },
   };

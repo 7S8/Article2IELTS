@@ -378,3 +378,15 @@ dialog::backdrop { background: rgba(0, 0, 0, .4); }
 
 .tr { margin-top: 6px; font-size: .95rem; }
 .tr-lang { color: var(--muted); font-size: .85em; }
+
+.notice { color: var(--ok); background: var(--ok-bg); padding: 8px 12px; border-radius: 8px; margin-top: 12px; }
+.table-wrap { overflow-x: auto; }
+.admin .table td { vertical-align: top; }
+.admin tr.blocked td { opacity: .6; }
+.admin .adm-actions { white-space: nowrap; }
+.admin .adm-actions .btn { padding: 2px 8px; }
+.admin tr.adm-detail td { background: var(--surface-2); }
+.btn.bad { color: var(--bad); }
+.chart .bar { fill: var(--vocab); }
+.chart rect.hit { fill: transparent; }
+.chart g:hover .bar { fill: var(--accent); }
