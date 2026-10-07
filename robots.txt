@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://7s8.github.io/Article2IELTS/sitemap.xml
