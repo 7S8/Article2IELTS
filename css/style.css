@@ -415,18 +415,11 @@ dialog::backdrop { background: rgba(0, 0, 0, .4); }
 }
 .menu button { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 8px 10px; border-radius: 6px; font: inherit; color: var(--text); cursor: pointer; }
 
-.menu .menu-cancel { display: none; }
-/* Phones: drop-down menus open as a sheet at the bottom of the screen, so nothing is cut off. */
+/* Phones: the menu opens under the button, lined up with its left edge, so it never runs off the screen. */
 @media (max-width: 760px) {
-  .menu {
-    position: fixed; left: 10px; right: 10px; top: auto; bottom: max(10px, env(safe-area-inset-bottom));
-    min-width: 0; padding: 8px; border-radius: 16px; z-index: 60; animation: sheet-up .2s ease-out;
-  }
-  .menu button { padding: 14px 14px; font-size: 1.05rem; border-radius: 10px; }
-  .menu .menu-cancel { display: block; margin-top: 4px; border-top: 1px solid var(--border); border-radius: 0 0 10px 10px; text-align: center; color: var(--muted); }
+  .menu { left: 0; right: auto; width: min(260px, calc(100vw - 32px)); min-width: 0; }
+  .menu button { padding: 11px 12px; }
 }
-@keyframes sheet-up { from { transform: translateY(20px); opacity: 0; } to { transform: none; opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .menu { animation: none; } }
 .menu button:hover { background: var(--surface-2); }
 .glossary-item .lvl.mine { background: var(--hl-yellow); color: var(--text); }
 
