@@ -485,6 +485,9 @@ dialog::backdrop { background: rgba(0, 0, 0, .4); }
 .lp-passage .para { grid-template-columns: 18px 1fr; margin-bottom: 8px; }
 .lp-passage .ptext { font-size: 13.5px; line-height: 1.65; }
 .lp-ptitle { font: 700 1rem var(--serif); margin-bottom: 8px; }
+.lp-demo-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.lp-lang { font-size: .85rem; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.lp-lang select { font: inherit; color: var(--text); background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 4px 8px; }
 .lp-questions { padding: 16px; font-size: 13px; background: var(--bg); }
 .lp-qhead { font-weight: 700; margin-bottom: 10px; font-size: 12.5px; }
 .lp-q { padding: 8px 0; border-top: 1px dashed var(--border); }
