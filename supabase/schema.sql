@@ -1,3 +1,4 @@
+-- Article2IELTS — © 2026 Nuramatova Sakinat Ibnuabasovna. All rights reserved.
 -- Article2IELTS database for Supabase (PostgreSQL).
 -- Run this whole file once in Supabase → SQL Editor → New query → Run.
 -- It is safe to run again: it only creates what is missing and replaces functions.
@@ -88,7 +89,9 @@ begin
   values (
     new.id,
     coalesce(new.email, ''),
-    coalesce(new.raw_user_meta_data ->> 'name', ''),
+    -- Email sign-up sends "name"; Google, GitHub and others send "full_name", "name" or "user_name".
+    coalesce(nullif(new.raw_user_meta_data ->> 'name', ''), nullif(new.raw_user_meta_data ->> 'full_name', ''),
+             nullif(new.raw_user_meta_data ->> 'user_name', ''), split_part(coalesce(new.email, ''), '@', 1)),
     coalesce(new.raw_user_meta_data ->> 'level', ''),
     coalesce(new.raw_user_meta_data ->> 'target', ''),
     case when exists (select 1 from public.profiles where role = 'admin') then 'user' else 'admin' end

@@ -1,5 +1,7 @@
 # Article2IELTS
 
+**Created by Nuramatova Sakinat Ibnuabasovna.** © 2026 Nuramatova Sakinat Ibnuabasovna. All rights reserved — see [LICENSE](LICENSE).
+
 Turn any newspaper or magazine article (The Atlantic, The Guardian, The Economist…) into an
 **IELTS Academic Reading test** you can practise in the browser.
 

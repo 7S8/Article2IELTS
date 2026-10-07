@@ -1,3 +1,4 @@
+/* Article2IELTS — © 2026 Nuramatova Sakinat Ibnuabasovna. All rights reserved. */
 /* Extra pages: sign up / log in, dashboard, flashcards. */
 (function () {
   const A2I = (window.A2I = window.A2I || {});
@@ -29,6 +30,36 @@
 
   /* ---------- sign up / log in ---------- */
 
+  // "Continue with …" buttons for sign-in services (shown only when switched on in Supabase).
+  const OAUTH = {
+  "google": {
+    "name": "Google",
+    "icon": "<svg viewBox=\"0 0 48 48\" width=\"18\" height=\"18\" aria-hidden=\"true\"><path fill=\"#FFC107\" d=\"M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z\"/><path fill=\"#FF3D00\" d=\"m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z\"/><path fill=\"#4CAF50\" d=\"M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z\"/><path fill=\"#1976D2\" d=\"M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z\"/></svg>"
+  },
+  "apple": {
+    "name": "Apple",
+    "icon": "<svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" aria-hidden=\"true\"><path fill=\"currentColor\" d=\"M16.37 12.6c-.02-2.2 1.8-3.26 1.88-3.31-1.03-1.5-2.62-1.71-3.19-1.73-1.36-.14-2.65.8-3.34.8-.69 0-1.75-.78-2.88-.76-1.48.02-2.85.86-3.61 2.19-1.54 2.67-.39 6.63 1.11 8.8.73 1.06 1.6 2.25 2.75 2.21 1.1-.04 1.52-.71 2.85-.71 1.33 0 1.71.71 2.88.69 1.19-.02 1.94-1.08 2.67-2.14.84-1.23 1.19-2.42 1.21-2.48-.03-.01-2.32-.89-2.33-3.56zM14.19 6.13c.61-.74 1.02-1.76.91-2.78-.88.04-1.94.59-2.57 1.32-.56.65-1.06 1.69-.93 2.69.98.08 1.98-.5 2.59-1.23z\"/></svg>"
+  },
+  "azure": {
+    "name": "Microsoft",
+    "icon": "<svg viewBox=\"0 0 21 21\" width=\"18\" height=\"18\" aria-hidden=\"true\"><path fill=\"#f25022\" d=\"M1 1h9v9H1z\"/><path fill=\"#7fba00\" d=\"M11 1h9v9h-9z\"/><path fill=\"#00a4ef\" d=\"M1 11h9v9H1z\"/><path fill=\"#ffb900\" d=\"M11 11h9v9h-9z\"/></svg>"
+  },
+  "github": {
+    "name": "GitHub",
+    "icon": "<svg viewBox=\"0 0 16 16\" width=\"18\" height=\"18\" aria-hidden=\"true\"><path fill=\"currentColor\" d=\"M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z\"/></svg>"
+  },
+  "facebook": {
+    "name": "Facebook",
+    "icon": "<svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" aria-hidden=\"true\"><path fill=\"#1877F2\" d=\"M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.1 10.13 24v-8.44H7.08v-3.49h3.05V9.41c0-3.02 1.79-4.69 4.53-4.69 1.31 0 2.69.24 2.69.24v2.97h-1.51c-1.49 0-1.96.93-1.96 1.89v2.25h3.33l-.53 3.49h-2.8V24C19.61 23.1 24 18.1 24 12.07z\"/></svg>"
+  },
+  "discord": {
+    "name": "Discord",
+    "icon": "<svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" aria-hidden=\"true\"><path fill=\"#5865F2\" d=\"M20.32 4.37A19.8 19.8 0 0 0 15.38 2.8a13.6 13.6 0 0 0-.63 1.29 18.4 18.4 0 0 0-5.5 0 12.7 12.7 0 0 0-.64-1.29 19.7 19.7 0 0 0-4.94 1.53C.54 9.05-.32 13.62.1 18.12a19.9 19.9 0 0 0 6.06 3.06 14.7 14.7 0 0 0 1.3-2.1 12.9 12.9 0 0 1-2.04-.98c.17-.13.34-.26.5-.39a14.2 14.2 0 0 0 12.16 0c.16.13.33.27.5.39-.65.39-1.33.71-2.04.98.37.74.81 1.44 1.3 2.1a19.8 19.8 0 0 0 6.06-3.06c.5-5.22-.84-9.75-3.58-13.75zM8.02 15.33c-1.18 0-2.16-1.08-2.16-2.42 0-1.33.95-2.42 2.16-2.42 1.21 0 2.18 1.1 2.16 2.42 0 1.34-.95 2.42-2.16 2.42zm7.96 0c-1.18 0-2.16-1.08-2.16-2.42 0-1.33.95-2.42 2.16-2.42 1.21 0 2.18 1.1 2.16 2.42 0 1.34-.94 2.42-2.16 2.42z\"/></svg>"
+  }
+};
+
+
+
   A2I.renderAuth = function (app, startMode, onDone) {
     let mode = startMode || (A2I.auth.hasAccounts() ? 'login' : 'register');
     function draw(error, notice) {
@@ -39,6 +70,7 @@
             <p class="muted small">${mode === 'login'
               ? 'Log in to see your tests, dashboard, words and flashcards.'
               : 'An account keeps your tests, scores, words and flashcards together and unlocks your progress dashboard.'}</p>
+            <div class="oauth" id="oauth" hidden></div>
             <form id="auth-form" novalidate>
               ${mode === 'register' ? `
                 <label>Name <input type="text" name="name" autocomplete="name" required></label>` : ''}
@@ -65,6 +97,26 @@
             ${A2I.cloud && A2I.cloud.startError ? `<div class="error">${esc(A2I.cloud.startError)}</div>` : ''}
           </div>
         </div>`;
+      // Sign-in services.
+      if (A2I.auth.providers) {
+        A2I.auth.providers().then((list) => {
+          const box = app.querySelector('#oauth');
+          const shown = Object.keys(OAUTH).filter((k) => list.includes(k));
+          if (!box || !shown.length) return;
+          box.hidden = false;
+          box.innerHTML = shown.map((k) => `<button type="button" class="btn oauth-btn" data-provider="${k}">${OAUTH[k].icon}<span>Continue with ${OAUTH[k].name}</span></button>`).join('') +
+            '<div class="or"><span>or with email</span></div>';
+          box.querySelectorAll('[data-provider]').forEach((b) => b.addEventListener('click', async () => {
+            b.disabled = true;
+            try {
+              await A2I.auth.signInWith(b.dataset.provider);
+            } catch (err) {
+              b.disabled = false;
+              draw(err.message);
+            }
+          }));
+        });
+      }
       const forgot = app.querySelector('#forgot');
       if (forgot) forgot.addEventListener('click', async (e) => {
         e.preventDefault();

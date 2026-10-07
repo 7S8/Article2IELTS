@@ -1,3 +1,4 @@
+/* Article2IELTS — © 2026 Nuramatova Sakinat Ibnuabasovna. All rights reserved. */
 /* Persistence (localStorage) and test-data helpers.
    Each account's data is stored under its own keys ("…@<userId>"). */
 (function () {

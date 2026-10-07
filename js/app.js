@@ -1,3 +1,4 @@
+/* Article2IELTS — © 2026 Nuramatova Sakinat Ibnuabasovna. All rights reserved. */
 /* Article2IELTS — views and interaction. */
 (function () {
   const A2I = window.A2I;

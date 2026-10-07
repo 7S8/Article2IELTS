@@ -1,3 +1,4 @@
+/* Article2IELTS — © 2026 Nuramatova Sakinat Ibnuabasovna. All rights reserved. */
 /* Admin panel: site statistics and user management.
    With the online database it covers every user of the site; without it,
    only the accounts created in this browser. */

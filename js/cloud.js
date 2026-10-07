@@ -1,3 +1,4 @@
+/* Article2IELTS — © 2026 Nuramatova Sakinat Ibnuabasovna. All rights reserved. */
 /* Online accounts and sync with Supabase.
    When js/config.js has a Supabase URL and key, sign-up and log-in go to the
    database, and everything a user saves (tests, answers, highlights, words,
@@ -30,7 +31,8 @@
       const s = document.createElement('script');
       s.src = SDK;
       s.onload = () => resolve(window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey, {
-        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+        // PKCE: after Google & co. the code comes back as ?code=…, which does not clash with the #/ page addresses.
+        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'pkce' },
       }));
       s.onerror = () => reject(new Error('Could not load the database library. Check your internet connection.'));
       document.head.appendChild(s);
@@ -255,6 +257,31 @@
       Object.assign(cloud.profile, patch);
       cloud.changed('profile', null, patch);
     },
+    /* Sign-in services switched on in Supabase (Authentication → Sign In / Providers). */
+    async providers() {
+      if (cloud._providers) return cloud._providers;
+      try {
+        const res = await fetch(cfg.supabaseUrl.replace(/\/$/, '') + '/auth/v1/settings', { headers: { apikey: cfg.supabaseAnonKey } });
+        const data = await res.json();
+        cloud._providers = Object.entries(data.external || {}).filter(([k, on]) => on && k !== 'email' && k !== 'phone').map(([k]) => k);
+      } catch (e) {
+        cloud._providers = [];
+      }
+      return cloud._providers;
+    },
+    async signInWith(provider) {
+      needClient();
+      if (location.protocol === 'file:') {
+        const names = { google: 'Google', github: 'GitHub', azure: 'Microsoft', apple: 'Apple', facebook: 'Facebook', discord: 'Discord' };
+        throw new Error('Signing in with ' + (names[provider] || provider) + ' only works on the published site (https://…), not on a file opened from your computer.');
+      }
+      const { error } = await cloud.client.auth.signInWithOAuth({
+        provider,
+        options: { redirectTo: location.origin + location.pathname },
+      });
+      if (error) throw new Error(friendly(error));
+      // The browser now goes to the provider's page and comes back here.
+    },
     async resetPassword(email) {
       needClient();
       const { error } = await cloud.client.auth.resetPasswordForEmail(String(email || '').trim().toLowerCase(), { redirectTo: location.href.split('#')[0] });
@@ -295,6 +322,13 @@
       });
       const { data } = await cloud.client.auth.getSession();
       if (data && data.session) await startSession(data.session);
+      // Back from Google & co. (or an email link): tidy the address and open the dashboard.
+      const params = new URLSearchParams(location.search);
+      if (params.has('code') || params.has('error_description')) {
+        const err = params.get('error_description');
+        history.replaceState(null, '', location.pathname + (cloud.profile ? '#/dashboard' : '#/login'));
+        if (err && !cloud.profile) cloud.startError = err;
+      }
     } catch (e) {
       console.warn(e);
       cloud.startError = e.message || String(e);

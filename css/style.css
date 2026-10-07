@@ -1,3 +1,4 @@
+/* Article2IELTS — © 2026 Nuramatova Sakinat Ibnuabasovna. All rights reserved. */
 :root {
   --bg: #f6f5f1;
   --surface: #ffffff;
@@ -486,3 +487,9 @@ dialog::backdrop { background: rgba(0, 0, 0, .4); }
 .lp-faq summary { cursor: pointer; font-weight: 600; }
 .lp-faq p { margin: 8px 0 0; color: var(--muted); }
 @media (prefers-reduced-motion: reduce) { .lp-rotate.in, .lp-wordbox { animation: none; } }
+
+/* sign in with Google & co. */
+.oauth { display: grid; gap: 8px; margin: 16px 0 4px; }
+.oauth-btn { justify-content: center; gap: 10px; padding: 10px 14px; font-weight: 600; width: 100%; }
+.oauth-btn svg { flex: none; }
+.oauth .or { margin-top: 8px; }

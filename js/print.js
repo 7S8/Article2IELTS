@@ -128,7 +128,7 @@
       parts.push((parts.length ? '<div class="break"></div>' : head) + `<h2>Dictionary (${test.vocabulary.length} words)</h2>` + dictionaryHTML(test));
     }
     const html = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(test.title)}</title><style>${STYLE}</style></head>
-      <body>${parts.join('')}<div class="foot">Made with Article2IELTS</div></body></html>`;
+      <body>${parts.join('')}<div class="foot">Made with Article2IELTS · created by Nuramatova Sakinat Ibnuabasovna</div></body></html>`;
 
     // Print from a hidden frame so the page itself is not disturbed.
     const old = document.getElementById('print-frame');
