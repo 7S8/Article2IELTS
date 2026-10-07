@@ -77,10 +77,10 @@
               <label>Email <input type="email" name="email" autocomplete="email" required></label>
               <label>Password <input type="password" name="password" autocomplete="${mode === 'login' ? 'current-password' : 'new-password'}" minlength="6" required></label>
               ${mode === 'register' ? `
-                <div class="row" style="gap:12px">
-                  <label style="flex:1">Current reading band
+                <div class="row" style="gap:12px;align-items:flex-end;flex-wrap:nowrap">
+                  <label style="flex:1;min-width:0">Current band
                     <select name="level"><option value="">Not sure</option>${['4.5', '5', '5.5', '6', '6.5', '7', '7.5', '8', '8.5'].map((b) => `<option>${b}</option>`).join('')}</select></label>
-                  <label style="flex:1">Target band
+                  <label style="flex:1;min-width:0">Target band
                     <select name="target">${['5.5', '6', '6.5', '7', '7.5', '8', '8.5', '9'].map((b) => `<option ${b === '7' ? 'selected' : ''}>${b}</option>`).join('')}</select></label>
                 </div>` : ''}
               ${error ? `<div class="error">${esc(error)}</div>` : ''}
