@@ -64,7 +64,7 @@ To add a bundled test, create `tests/<name>.js` in the same format as `tests/sam
 | `css/style.css` | Styles (light and dark mode) |
 | `js/storage.js` | Saving to the browser, backups, splitting paragraphs, checking test JSON |
 | `js/passage.js` | Showing the passage with dictionary words, highlights and answer locations |
-| `js/dictionary.js` | Free word look-up (dictionaryapi.dev, Wiktionary and Google, with a time limit) |
+| `js/dictionary.js` | Free word look-up (dictionaryapi.dev, Wiktionary, Google and Datamuse, with a time limit) |
 | `js/translate.js` | Free translation of words and sentences |
 | `js/print.js` | Printable test, answer key and dictionary |
 | `js/generator.js` | Prompt and JSON schema, and calls to Claude, Gemini, Groq and OpenRouter |

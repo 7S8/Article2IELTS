@@ -1,5 +1,5 @@
 /* Looking up English words online, free and without a key.
-   Three sources are asked at the same time — dictionaryapi.dev, Wiktionary and Google —
+   Four sources are asked at the same time — dictionaryapi.dev, Wiktionary, Google and Datamuse —
    and the first useful answer wins. Each has a time limit, so a slow or
    unreachable service never leaves the page stuck on "Looking up…". */
 (function () {
@@ -78,21 +78,44 @@
 
   /* Google Translate's public endpoint also returns English definitions (dt=md). */
   async function fromGoogle(word, signal) {
-    const data = await getJSON('https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=en&dt=md&dt=ex&q=' + encodeURIComponent(word), signal);
-    const defs = Array.isArray(data) && data[12];
+    // Definitions (dt=md) only come back on a real translation request, so ask for one (English → Russian
+    // or the chosen language) and read the English definitions from the same answer.
+    const to = (A2I.store && A2I.store.getSettings().translateTo) || 'ru';
+    const data = await getJSON('https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=' + encodeURIComponent(to === 'en' ? 'ru' : to) +
+      '&hl=en&dt=t&dt=bd&dt=md&dt=ex&q=' + encodeURIComponent(word), signal);
+    const defs = Array.isArray(data) && data.find((x, i) => i >= 11 && Array.isArray(x) && Array.isArray(x[0]) && typeof x[0][0] === 'string' && Array.isArray(x[0][1]));
     if (!Array.isArray(defs) || !defs.length) return null;
     const meanings = defs.map((m) => ({
       partOfSpeech: m[0] || '',
       synonyms: [],
-      definitions: (m[1] || []).map((d) => ({ definition: d[0], example: d[2] ? String(d[2]).replace(/<\/?b>/g, '') : '' })).filter((d) => d.definition),
+      definitions: (m[1] || []).filter(Array.isArray).map((d) => ({ definition: String(d[0] || ''), example: d[2] ? String(d[2]).replace(/<\/?b>/g, '') : '' })).filter((d) => d.definition),
     })).filter((m) => m.definitions.length);
     return meanings.length ? { word, phonetic: '', audio: '', meanings } : null;
+  }
+
+  /* Datamuse: free word API with WordNet definitions ("n\tdefinition"). */
+  const POS = { n: 'noun', v: 'verb', adj: 'adjective', adv: 'adverb', u: '' };
+  async function fromDatamuse(word, signal) {
+    const data = await getJSON('https://api.datamuse.com/words?md=d&max=1&sp=' + encodeURIComponent(word), signal);
+    const e = Array.isArray(data) && data[0];
+    if (!e || !Array.isArray(e.defs) || !e.defs.length || e.word.toLowerCase() !== word.toLowerCase()) return null;
+    const byPos = {};
+    e.defs.forEach((d) => {
+      const [pos, def] = String(d).split('\t');
+      const key = POS[pos] != null ? POS[pos] : pos;
+      (byPos[key] = byPos[key] || []).push({ definition: def || pos, example: '' });
+    });
+    return {
+      word: e.defHeadword || e.word,
+      phonetic: '', audio: '',
+      meanings: Object.entries(byPos).map(([partOfSpeech, definitions]) => ({ partOfSpeech, synonyms: [], definitions: definitions.slice(0, 4) })),
+    };
   }
 
   /* First non-empty answer from the sources, or null when none has one. */
   function firstAnswer(word, signal) {
     return new Promise((resolve) => {
-      let pending = 3;
+      let pending = 4;
       const done = (r) => {
         if (r) { resolve(r); pending = -1; return; }
         if (--pending === 0) resolve(null);
@@ -100,6 +123,7 @@
       fromDictionaryApi(word, signal).then(done, () => done(null));
       fromWiktionary(word, signal).then(done, () => done(null));
       fromGoogle(word, signal).then(done, () => done(null));
+      fromDatamuse(word, signal).then(done, () => done(null));
     });
   }
 
