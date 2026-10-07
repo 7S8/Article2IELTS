@@ -12,10 +12,10 @@
   A2I.CREDIT = TEXT;
   Object.freeze && Object.defineProperty(A2I, 'CREATOR', { value: CREATOR, writable: false, configurable: false });
 
-  const STYLE = 'display:block!important;visibility:visible!important;opacity:1!important;position:static!important;' +
-    'text-align:center;font:13px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:inherit;' +
-    'padding:18px 16px 22px;margin:0;border-top:1px solid rgba(127,127,127,.25);clip:auto!important;height:auto!important;' +
-    'transform:none!important;filter:none!important;font-size:13px!important;';
+  const STYLE = 'display:block!important;visibility:visible!important;position:static!important;' +
+    'text-align:center;font:italic 11px/1.5 Georgia,"Times New Roman",serif;letter-spacing:.02em;color:inherit;opacity:.7!important;' +
+    'padding:12px 16px 14px;margin:0;border-top:1px solid rgba(127,127,127,.25);clip:auto!important;height:auto!important;' +
+    'transform:none!important;filter:none!important;font-size:11px!important;';
 
   function make() {
     const f = document.createElement('footer');
