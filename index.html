@@ -22,10 +22,12 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23b3261e'/%3E%3Ctext x='32' y='44' font-family='Arial' font-weight='700' font-size='34' text-anchor='middle' fill='%23fff'%3EA2%3C/text%3E%3C/svg%3E">
   <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"Article2IELTS","url":"https://7s8.github.io/Article2IELTS/","applicationCategory":"EducationalApplication","operatingSystem":"Any","offers":{"@type":"Offer","price":"0"},"description":"Turn any newspaper or magazine article into an IELTS Academic Reading practice test.","creator":{"@type":"Person","name":"Nuramatova Sakinat Ibnuabasovna"}}</script>
   <link rel="stylesheet" href="css/style.css">
+  <script>try { var t = localStorage.getItem('a2i.theme'); if (t && t !== 'auto') document.documentElement.dataset.theme = t; } catch (e) {}</script>
 </head>
 <body>
   <header class="topbar">
     <a class="brand" href="#/">Article<span>2</span>IELTS</a>
+    <div class="topright">
     <nav class="topnav">
       <a href="#/dashboard" data-nav="dashboard">Dashboard</a>
       <a href="#/" data-nav="library">My tests</a>
@@ -40,6 +42,19 @@
       <a href="#/login" class="linklike">Log in</a>
       <a href="#/signup" class="btn primary small">Start free</a>
     </nav>
+    <div class="theme-pick">
+      <button type="button" class="theme-btn" id="theme-btn" aria-haspopup="true" aria-expanded="false" title="Background colour">
+        <span class="theme-dot"></span>
+      </button>
+      <div class="theme-menu" id="theme-menu" role="menu" hidden>
+        <div class="theme-menu-title">Background</div>
+        <button type="button" role="menuitemradio" data-theme-set="light"><span class="sw sw-light"></span>Light</button>
+        <button type="button" role="menuitemradio" data-theme-set="sepia"><span class="sw sw-sepia"></span>Paper</button>
+        <button type="button" role="menuitemradio" data-theme-set="dark"><span class="sw sw-dark"></span>Dark</button>
+        <button type="button" role="menuitemradio" data-theme-set="auto"><span class="sw sw-auto"></span>Auto (like my device)</button>
+      </div>
+    </div>
+    </div>
   </header>
 
   <main id="app"></main>
@@ -116,6 +131,7 @@
   <script src="js/admin.js"></script>
   <script src="js/landing.js"></script>
   <script src="js/app.js"></script>
+  <script src="js/theme.js"></script>
   <script src="js/credit.js"></script>
 </body>
 </html>
